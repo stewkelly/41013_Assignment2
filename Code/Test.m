@@ -1,6 +1,6 @@
 function Test()
     axis equal;
-    r = XArm6();
+    r = DobotCR10(transl(0,0,1)*troty(-pi/2));
     
     qMatrix = jtraj(r.model.qlim(:,1),r.model.qlim(:,2),100);
 
