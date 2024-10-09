@@ -5,6 +5,7 @@ classdef XArm6 < RobotBaseClass
     end
     
     methods
+         
         %% Define robot Function 
         function self = XArm6(baseTr)
 			self.CreateModel();
