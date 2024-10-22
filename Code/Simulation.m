@@ -82,3 +82,38 @@ classdef Simulation < handle
         end
     end
 end
+
+%% Need To Do
+%% High Level Planning
+% > grab bread
+% > move to toaster
+% > toast bread
+% > grab toast
+% > move to plate
+% > put spread on toast
+% > move toast w/ spread to final plate
+
+%% Classes
+%% Object Class 
+% to store position and status of bread / toast
+% function updatePosition
+% end
+
+%% Robot Class
+% to contain the robot and gripper functions below
+% function moveArm
+% end
+% 
+% function moveGripper
+% end
+% 
+% function openGripper
+% end
+% 
+% function closeGripper
+% end
+% 
+% function animateMovement
+% end
+
+
