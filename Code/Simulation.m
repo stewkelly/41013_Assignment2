@@ -93,6 +93,12 @@ end
 % > put spread on toast
 % > move toast w/ spread to final plate
 
+%% Additions
+% > GUI
+% > E-stop
+% > Collision Avoidance
+% > Singularity
+
 %% Classes
 %% Object Class 
 % to store position and status of bread / toast
