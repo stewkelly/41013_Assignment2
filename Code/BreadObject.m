@@ -1,13 +1,15 @@
 classdef BreadObject < handle
     properties
         position;   % Object's [x,y,z] position
+        pose;       % Object's [yaw, pitch, roll, position] pose
         file;       % Object's .ply file
         mesh;       % Object's trisurf object
     end
 
     methods
-        function self = BreadObject(position, file)
+        function self = BreadObject(position, pose, file)
             self.position = position;
+            self.pose = pose; % For rotation
             self.file = file;
             self.PlotObject();
         end
@@ -18,30 +20,45 @@ classdef BreadObject < handle
             vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 
             % Plot the object at the initial position and store the mesh handle
+            R = self.pose(1:3, 1:3);  % Extract the rotation matrix from the pose
+            rotatedVertices = (R * vertices')';
+
+            % Shift vertices based on the initial position
+            shiftedVertices = rotatedVertices + self.position;
+
+            % Plot the object at the initial position and store the mesh handle
             self.mesh = trisurf(faces, ...
-                vertices(:, 1) + self.position(1), ...
-                vertices(:, 2) + self.position(2), ...
-                vertices(:, 3) + self.position(3), ...
+                shiftedVertices(:, 1), ...
+                shiftedVertices(:, 2), ...
+                shiftedVertices(:, 3), ...
                 'FaceVertexCData', vertexColors, ...
                 'EdgeColor', 'none', ...
                 'EdgeLighting', 'none');
         end
 
-        function updatePosition(self, newPosition)
+        function updatePosition(self, newPosition, newPose)
             % Update the object's position and move its mesh accordingly
             self.position = newPosition;
-
-            % Reload the current PLY file at the new position
+            self.pose = newPose;
+        
+            % Load the vertices and colors from the PLY file
             [faces, vertices, data] = plyread(self.file, 'tri');
             vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+        
+            % Changed how verticies are shifted - added extra step to account
+            % for rotation - appears in changeFile as well
 
-            % Shift vertices based on the new position
-            shiftedVertices = vertices + self.position;
-
-            % Update mesh vertices
+            % Extract rotation and translation from the new pose
+            R = newPose(1:3, 1:3);  % Rotation matrix
+            T = newPose(1:3, 4)';   % Translation vector
+        
+            % Apply rotation and translation to each vertex
+            transformedVertices = (R * vertices')' + T;
+        
+            % Ensure vertices and faces are updated properly
             try
                 set(self.mesh, 'Faces', faces, ...
-                    'Vertices', shiftedVertices, ...
+                    'Vertices', transformedVertices, ...
                     'FaceVertexCData', vertexColors);
                 drawnow;
                 disp(['Bread object moved to new position: ', mat2str(newPosition)]);
@@ -50,6 +67,7 @@ classdef BreadObject < handle
                 disp(ME.message);
             end
         end
+
 
         function releaseObject(self)
             % Optional: Remove the mesh if the object is released permanently
@@ -65,17 +83,25 @@ classdef BreadObject < handle
             [faces, vertices, data] = plyread(self.file, 'tri');
             vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 
-            % Shift vertices based on position
-            shiftedVertices = vertices + self.position;
+        % Changed how verticies are shifted - added extra step to account
+        % for rotation - appears in updatePosition as well
+
+            % Extract the rotation matrix and translation vector from the current pose
+            R = self.pose(1:3, 1:3);  % Rotation matrix (3x3)
+            T = self.pose(1:3, 4)';   % Translation vector (1x3)
+        
+            % Apply the current pose: Rotate vertices, then translate
+            rotatedVertices = (R * vertices')';  % Rotate vertices
+            transformedVertices = rotatedVertices + T;  % Translate vertices
 
             % Ensure shiftedVertices is [N x 3]
-            if size(shiftedVertices, 2) ~= 3
+            if size(transformedVertices, 2) ~= 3
                 error('Shifted vertices must have three columns (x, y, z).');
             end
 
             % Update mesh vertices and faces
             set(self.mesh, 'Faces', faces, ...
-                'Vertices', shiftedVertices, ...
+                'Vertices', transformedVertices, ...
                 'FaceVertexCData', vertexColors);
             drawnow;
         end

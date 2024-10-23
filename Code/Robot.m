@@ -59,7 +59,7 @@ classdef Robot < handle
             % Approach the object
             approachPose = transl(breadobject.position) * trotx(pi/2);
             self.moveArm(approachPose, 50);
-            self.closeGripper(50, object);
+            self.closeGripper(50, breadobject);
         end
 
         %% Release Object

@@ -13,11 +13,18 @@
 
  % I tried to comment most of it but if you have any questions about code, just message me
 
+ % Changes 24/10/24: 
+       % Iterates through bread pieces
+       % Bread stacks on final plate
+       % Rotation implemented - could simplify position to be derived from 4x4 rotation
+            % matrix rather than from seperate variable
+
 classdef Simulation < handle
     properties
         r1;          % First Robot instance (XArm6)
         r2;          % Second Robot instance (DobotMagician)
         breads;      % Array of BreadObject instances
+        stack;       % For incrimenting stake height on plate
     end
 
     methods
@@ -26,10 +33,12 @@ classdef Simulation < handle
             clf;
             close all;
             figure('Name', 'Simulation');
+            self.stack = 1.05;
             self.plotEnvironment();
             self.plotRobots();
             self.plotBread();
             self.runSim();
+           
         end
 
         %% Plot Environment
@@ -103,23 +112,28 @@ classdef Simulation < handle
         %% Plot Bread Objects
         function plotBread(self)
             breadPositions = [
-                0, 1.5, 1.2
-                % 0, 1.5, 1.15;
-                % 0, 1.5, 1.10;
-                % 0, 1.5, 1.05
+                0, 1.5, 1.2;
+                0, 1.5, 1.15;
+                0, 1.5, 1.10;
+                0, 1.5, 1.05
                 ];
+            
+            % Initialises rotation matrix
+            poses = eye(4);
+
 
             self.breads = cell(length(breadPositions), 1);
 
             % Just working with 1 bread object for now to fix bugs
 
-            % for i = 1:length(breadPositions)
-            %     pos = breadPositions(i, :);
-            %     self.breads{i} = BreadObject(pos, 'bread.ply');
-            % end
+            for i = 1:length(breadPositions)
+                 pos = breadPositions(i, :);
+                 self.breads{i} = BreadObject(pos, poses, 'bread.ply');
 
-            pos = breadPositions(1, :);
-            self.breads{1} = BreadObject(pos, 'bread.ply');
+             end
+        
+           % pos = breadPositions(1, :);
+           % self.breads{1} = BreadObject(pos, 'bread.ply');
         end
 
 
@@ -127,6 +141,7 @@ classdef Simulation < handle
         function runSim(self)
             % Main Control Loop
             for i = 1:length(self.breads)
+
                 % Current bread
                 currentBread = self.breads{i}; % Right now just using 1 bread for testing
 
@@ -140,9 +155,10 @@ classdef Simulation < handle
                 toasterPose = transl(-0.75, 1, 1.2) * trotz(pi/2);
                 self.r1.moveArm(toasterPose, 50);
                 pause(0.5);
-
-                % Release bread to toaster              
-                currentBread.updatePosition(toasterPosition);
+        
+                % Release bread to toaster
+                breadPose = transl(-0.75, 1, 1.2) * trotx(pi/2); % Added for rotation into toaster
+                currentBread.updatePosition(toasterPosition, breadPose);
                 self.r1.releaseObject();
                 currentBread.updateStatus('toasted'); % Update bread status to toasted - this changes bread to toast
                 pause(0.5);
@@ -155,7 +171,8 @@ classdef Simulation < handle
                 pause(0.5);
 
                 % Probably need to fix this too but havent got here yet
-                currentBread.updatePosition(butterPosition);
+                breadPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Added for rotation onto plate
+                currentBread.updatePosition(butterPosition, breadPose);
                 self.r1.releaseObject();
                 self.r2.butterBread(currentBread, butterPose, 50);
                 currentBread.updateStatus('buttered');
@@ -164,11 +181,12 @@ classdef Simulation < handle
                 % Pick up bread and wait
                 self.r1.pickUp(currentBread);
                 pause(0.5);
-
-                finalPosition = [0, 0.45, 1.1];
-                finalPose = transl(0, 0.45, 1.1) * trotz(pi/2);
+                
+                finalPosition = [0, 0.45, self.stack];
+                finalPose = transl(0, 0.45, self.stack) * trotz(pi/2);
                 self.r1.moveArm(finalPose, 50);
-                currentBread.updatePosition(finalPosition);
+                currentBread.updatePosition(finalPosition, finalPose);
+                self.stack = self.stack + 0.05;
                 self.r1.releaseObject();
                 pause(0.5);
 
