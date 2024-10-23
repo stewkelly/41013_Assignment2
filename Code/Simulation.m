@@ -2,9 +2,14 @@
  % I've written a list of todo throughout the control loop. 
  % It is mostly done just need to tweak the animations and update some of the positions to make it look better
  % If you feel like doing the collision avoidance, feel free 
- % 
+ 
  % Most of the tweaks to positions will be in this class but you may have to edit some of the movement 
  % and animation functions in the robot class to get it smoother 
+
+ % > Need to add the knife.ply to the robot for buttering the bread
+ % > GUI for the simulation
+ % > Collision avoidance
+ % > E Stop button functionality
 
  % I tried to comment most of it but if you have any questions about code, just message me
 
