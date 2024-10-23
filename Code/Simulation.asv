@@ -80,6 +80,21 @@ classdef Simulation < handle
             self.r1.model.animate(q1);
             self.r2.model.animate(q2);
         end
+
+        function runSim()
+            for i = 1:numel(self.breads)
+                % Set current bread
+                self.currentBread = self.breads{i};
+                
+                % Control Loop
+                % grab (bread)
+                % moveArm (to toaster)
+                % grab (toast)
+                % moveArm 
+
+            end
+            
+        end
     end
 end
 
@@ -93,12 +108,20 @@ end
 % > put spread on toast
 % > move toast w/ spread to final plate
 
+%% Additions
+% > GUI
+% > E-stop
+% > Collision Avoidance
+% > Singularity
+
 %% Classes
-% Object Class 
+%% Object Class 
 % to store position and status of bread / toast
+% function updatePosition
+% end
 
-% 
-
+%% Robot Class
+% to contain the robot and gripper functions below
 % function moveArm
 % end
 % 
@@ -113,6 +136,5 @@ end
 % 
 % function animateMovement
 % end
-% 
 
 

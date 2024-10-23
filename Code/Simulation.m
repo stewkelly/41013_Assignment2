@@ -80,40 +80,89 @@ classdef Simulation < handle
             self.r1.model.animate(q1);
             self.r2.model.animate(q2);
         end
+
+        function runSim()
+            for i = 1:numel(self.breads)
+                % Set current bread
+                self.currentBread = self.breads{i};
+
+                % Control Loop
+                % grab (bread)
+                % moveArm (to toaster)
+                % release (bread)
+                % grab (toast)
+                % moveArm (to spread)
+                % release (toast)
+                % spreadButter
+                % grab (spreadToast)
+                % moveArm (to plate)
+                % release (spreadToast)
+            end
+
+        end
     end
 end
 
 %% Need To Do
-%% High Level Planning
-% > grab bread
-% > move to toaster
-% > toast bread
-% > grab toast
-% > move to plate
-% > put spread on toast
-% > move toast w/ spread to final plate
+
+
+%% Additions
+% > GUI
+% > E-stop
+% > Collision Avoidance
+% > Singularity
 
 %% Classes
-%% Object Class 
+%% Object Class
 % to store position and status of bread / toast
 % function updatePosition
-% end
 
 %% Robot Class
 % to contain the robot and gripper functions below
-% function moveArm
+
+%% function moveArm(self, robot, position)
+% qNow = robot.model.getpos();
+% targetPose = transl(position) * transl(0, 0, 0.15) * troty(pi);
+% qTarget = robot.model.ikcon(targetPose, qNow);
+% qMatrix = jtraj(qNow, qTarget, 50);
+% disp(qTarget);
+% self.AnimateMovement(robot, qMatrix);
 % end
-% 
-% function moveGripper
+
+%% function moveGripper(self, pose)
+% self.r1Finger1.model.base = pose * trotx(pi/2);
+% self.r1Finger2.model.base = pose * trotx(pi/2) * troty(pi);
 % end
+
+%% function release()
+% qNow = self.r1Finger1.model.getpos();
+% qOpen = [deg2rad(10), deg2rad(0)];
+% steps = 50;
+% qMatrix = jtraj(qNow, qOpen, steps);
 % 
-% function openGripper
+% for i = 1:steps
+%     self.r1Finger1.model.animate(qMatrix(i,:));
+%     self.r2Finger2.model.animate(qMatrix(i,:));
+%     pause(0.01);
 % end
+
+%% function grab()
+% qNow = self.r1Finger1.model.getpos();
+% qClose = [deg2rad(20), deg2rad(12)];
+% steps = 50;
+% qMatrix = jtraj(qNow, qOpen, steps);
 % 
-% function closeGripper
+% for i = 1:steps
+%     self.r1Finger1.model.animate(qMatrix(i,:));
+%     self.r2Finger2.model.animate(qMatrix(i,:));
+%     pause(0.01);
 % end
-% 
-% function animateMovement
+
+%% function animateMovement(self, robot, qMatrix)
+% for i = 1:size(qMatrix, 1)
+    % robot.model.animate(qMatrix(i, :));
+    % 
+    % endEffectorPose = robot.model.fkine(qMatrix(i, :)).T;
 % end
 
 
