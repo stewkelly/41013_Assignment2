@@ -1,140 +1,162 @@
+% Simulation.m
 classdef Simulation < handle
     properties
-        r1;
-        r1Finger1;
-        r1Finger2;
-
-        r2;
-        r2Finger1;
-        r2Finger2;
+        r1;          % First Robot instance (XArm6)
+        r2;          % Second Robot instance (DobotMagician)
+        breads;      % Array of BreadObject instances
     end
 
     methods
+        %% Constructor
         function self = Simulation()
             clf;
             close all;
+            figure('Name', 'Simulation');
             self.plotEnvironment();
             self.plotRobots();
+            self.plotBread();
+            self.runSim();
         end
 
+        %% Plot Environment
         function plotEnvironment(self)
-            clf;
             hold on;
-            axis tight
-            PlaceObject('bread.ply',[0,1.5,1.05]);
-            PlaceObject('bread.ply',[0,1.5,1.1]);
-            PlaceObject('bread.ply',[0,1.5,1.15]);
-            PlaceObject('bread.ply',[0,1.5,1.2]);
+            axis equal;
 
-            PlaceObject('toast.ply',[0,0.25,1.05]);
-            PlaceObject('table.ply',[0,0,0]);
-            PlaceObject('table.ply',[0,1.5,0]);
-            PlaceObject('table.ply',[2,0,0]);
-            PlaceObject('person.ply',[0,-1,0]);
-            PlaceObject('person.ply',[2,-1,0]);
-            PlaceObject('emergencyStopButton.ply',[2.5,0,1]);
-            PlaceObject('emergencyStopButton.ply',[1.5,0,1]);
-            PlaceObject('fenceAssembly.ply',[0.05,2.1,-0.5]);
-            PlaceObject('plate.ply',[0,0.25,1.1]);
-            PlaceObject('plate.ply',[0,1.5,1.1]);
-            PlaceObject('plate.ply',[0.5,1,1.1]);
-            PlaceObject('toaster.ply',[-0.5,1,1]);
+            % Place non-bread objects in the environment
+            PlaceObject('table.ply', [0, 0, 0]);
+            PlaceObject('table.ply', [0, 1.5, 0]);
+            PlaceObject('table.ply', [2, 0, 0]);
+            PlaceObject('person.ply', [0, -1, 0]);
+            PlaceObject('person.ply', [2, -1, 0]);
+            PlaceObject('emergencyStopButton.ply', [2.5, 0, 1]);
+            PlaceObject('emergencyStopButton.ply', [1.5, 0, 1]);
+            PlaceObject('fenceAssembly.ply', [0.05, 2.1, -0.5]);
+            PlaceObject('plate.ply', [0, 0.45, 1.1]);
+            PlaceObject('plate.ply', [0, 1.5, 1.1]);
+            PlaceObject('plate.ply', [0.5, 1, 1.1]);
+            PlaceObject('toaster.ply', [-0.5, 1, 1]);
 
             % Floor
-            surf([-1.5,-1.5;3.1,3.1] ...
-                ,[-2,5;-2,5] ...
-                ,[0.01,0.01;0.01,0.01] ...
-                ,'CData',imread('tile.jpg') ...
-                ,'FaceColor','texturemap');
+            tileTexture = imread('tile.jpg');
+            surf([-1.5, 3.1; -1.5, 3.1], ...
+                [-2, -2; 5, 5], ...
+                [0.01, 0.01; 0.01, 0.01], ...
+                'CData', tileTexture, ...
+                'FaceColor', 'texturemap');
+
 
             % Left Wall
-            surf([-1.5,-1.5;-1.5,-1.5] ...
-                ,[-2,5;-2,5] ...
-                ,[0,0;2,2] ...
-                ,'CData',imread('tile.jpg') ...
-                ,'FaceColor','texturemap');
+            surf([-1.5, -1.5; -1.5, -1.5], ...
+                [-2, 5; -2, 5], ...
+                [0, 0; 2, 2], ...
+                'CData', tileTexture, ...
+                'FaceColor', 'texturemap');
+
 
             % Back Wall
-            surf([-1.5,3.1;-1.5,3.1] ...
-                ,[5,5;5,5] ...
-                ,[0,0;2,2] ...
-                ,'CData',imread('tile.jpg') ...
-                ,'FaceColor','texturemap');
+            surf([-1.5, 3.1; -1.5, 3.1], ...
+                [5, 5; 5, 5], ...
+                [0, 0; 2, 2], ...
+                'CData', tileTexture, ...
+                'FaceColor', 'texturemap');
         end
 
+        %% Plot Robots
         function plotRobots(self)
-            % XArm6 and Gripper Plotting
-            baseR1 = transl(0,1,1);
-            self.r1 = XArm6(baseR1);
-            q1 = zeros(1,6)
-            base = self.r1.model.fkine(q1).T;
-            self.r1Finger1 = GripperFinger(base * trotx(pi/2));
-            self.r1Finger2 = GripperFinger(base * trotx(pi/2) * troty(pi));
+                % Initialize XArm6 Robot
+                baseR1 = transl(0, 1, 1); 
+                xarm6Model = XArm6(baseR1);
+                self.r1 = Robot(xarm6Model);
 
-            % Dobot Magician Plotting
-            baseR2 = transl(0.5,1.5,1)
-            self.r2 = DobotMagician(baseR2);
-            q2 = zeros(1,5);
+                % Initialize Dobot Magician Robot
+                baseR2 = transl(0.5, 1.5, 1); 
+                dobotModel = DobotMagician(baseR2);
+                self.r2 = Robot(dobotModel);
 
-            % Animate Robots
-            self.r1.model.animate(q1);
-            self.r2.model.animate(q2);
+                % Initialize joint positions (assuming zero positions)
+                q1 = zeros(1, self.r1.robotModel.model.n);
+                q2 = zeros(1, self.r2.robotModel.model.n);
+
+                % Animate Robots to initial positions
+                self.r1.robotModel.model.animate(q1);
+                self.r2.robotModel.model.animate(q2);
+                self.r1.currentPos = q1;
+                self.r2.currentPos = q2;
+            
         end
 
-        function runSim()
-            for i = 1:numel(self.breads)
-                % Set current bread
-                self.currentBread = self.breads{i};
-                
-                % Control Loop
-                % grab (bread)
-                % moveArm (to toaster)
-                % grab (toast)
-                % moveArm 
+        %% Plot Bread Objects
+        function plotBread(self)
+            breadPositions = [
+                0, 1.5, 1.2
+                % 0, 1.5, 1.15;
+                % 0, 1.5, 1.10;
+                % 0, 1.5, 1.05
+                ];
+
+            self.breads = cell(length(breadPositions), 1);
+
+            % Just working with 1 bread object for now to fix bugs
+
+            % for i = 1:length(breadPositions)
+            %     pos = breadPositions(i, :);
+            %     self.breads{i} = BreadObject(pos, 'bread.ply');
+            % end
+
+            pos = breadPositions(1, :);
+            self.breads{1} = BreadObject(pos, 'bread.ply');
+        end
+
+
+        %% Run Simulation
+        function runSim(self)
+            % Main Control Loop
+            for i = 1:length(self.breads)
+                % Current bread
+                currentBread = self.breads{i}; % Right now just using 1 bread for testing
+
+                % Pick up bread and wait
+                self.r1.pickUp(currentBread);
+                pause(0.5);
+
+                % Move to toaster (need to fix toaster position and orientation)
+                % Also need to make animation smoother
+                toasterPosition = [-0.75, 1, 1.2];
+                toasterPose = transl(-0.75, 1, 1.2) * trotz(pi/2);
+                self.r1.moveArm(toasterPose, 50);
+                pause(0.5);
+
+                % Release bread to toaster
+                self.r1.releaseObject();
+                currentBread.updatePosition(toasterPosition);
+                currentBread.updateStatus('toasted'); % Update bread status to toasted - this changes bread to toast
+                pause(0.5);
+
+                % This movement is funny, need to add collision avoidance
+                % or waypoint to fix
+                butterPosition = [0.5, 1, 1.1];
+                butterPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Position where bread needs to be buttered - need to fix
+                self.r1.moveArm(butterPose, 50);
+                pause(0.5);
+
+                % Probably need to fix this too but havent got here yet
+                self.r1.releaseObject();
+                currentBread.updatePosition(butterPosition);
+                self.r2.butterBread(currentBread, butterPose, 50);
+                currentBread.updateStatus('buttered');
+                pause(0.5);
+
+                % Pick up bread and wait
+                self.r1.pickUp(currentBread);
+                pause(0.5);
+
+                finalPosition = [0, 0.45, 1.1];
+                finalPose = 
+                self.r1.moveArm(finalPose, 50);
+                pause(0.5);
 
             end
-            
         end
     end
 end
-
-%% Need To Do
-%% High Level Planning
-% > grab bread
-% > move to toaster
-% > toast bread
-% > grab toast
-% > move to plate
-% > put spread on toast
-% > move toast w/ spread to final plate
-
-%% Additions
-% > GUI
-% > E-stop
-% > Collision Avoidance
-% > Singularity
-
-%% Classes
-%% Object Class 
-% to store position and status of bread / toast
-% function updatePosition
-% end
-
-%% Robot Class
-% to contain the robot and gripper functions below
-% function moveArm
-% end
-% 
-% function moveGripper
-% end
-% 
-% function openGripper
-% end
-% 
-% function closeGripper
-% end
-% 
-% function animateMovement
-% end
-
-
