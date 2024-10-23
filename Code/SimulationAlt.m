@@ -1,3 +1,7 @@
+% Contains working movement for using velocity kinematics and damped least
+% squares - diverges from current "Simulation" so made a new file to avoid
+% clash
+
 classdef SimulationAlt < handle
     properties
         r1;
