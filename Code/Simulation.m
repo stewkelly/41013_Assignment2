@@ -22,6 +22,7 @@
        % Bread changes state correctly
        % Added toaster pop animation 
        % XArm drops bread for toasting + spreading to be completed
+       % Added Gui - need impliment eStop functionality but buttons work
 
 
 classdef Simulation < handle
@@ -30,6 +31,7 @@ classdef Simulation < handle
         r2;          % Second Robot instance (DobotMagician)
         breads;      % Array of BreadObject instances
         stack;       % For incrimenting stake height on plate
+        guiApp;
     end
 
     methods
@@ -37,13 +39,17 @@ classdef Simulation < handle
         function self = Simulation()
             clf;
             close all;
+            
+            self.guiApp = gui;
+            self.guiApp.setSimulationInstance(self); % Set the simulation instance
+
             figure('Name', 'Simulation');
             self.stack = 1.05;
             self.plotEnvironment();
             self.plotRobots();
             self.plotBread();
             self.runSim();
-           
+            
            
         end
 
@@ -90,7 +96,7 @@ classdef Simulation < handle
                 'CData', tileTexture, ...
                 'FaceColor', 'texturemap');
         end
-
+        
         %% Plot Robots
         function plotRobots(self)
                 % Initialize XArm6 Robot
@@ -140,6 +146,26 @@ classdef Simulation < handle
         
            % pos = breadPositions(1, :);
            % self.breads{1} = BreadObject(pos, 'bread.ply');
+        end
+
+        %% Gui Buttons
+        function handleEStop(self)
+        % Logic to handle emergency stop
+        disp('Emergency Stop Triggered');
+        % Implement stopping the simulation
+        end
+    
+        function handleReady(self)
+        % Logic to handle system ready
+        disp('System Ready');
+        % Implement any necessary preparation for simulation
+         end
+    
+        function handleStart(self)
+        % Logic to handle starting/resuming simulation
+        disp('Simulation Started');
+        % Implement starting or resuming the simulation
+        self.runSim();
         end
 
 
