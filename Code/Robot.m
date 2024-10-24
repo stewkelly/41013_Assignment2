@@ -22,6 +22,10 @@ classdef Robot < handle
         %% Move Arm
         function moveArm(self, targetPose, steps)
             qNow = self.robotModel.model.getpos();
+            disp("qNow:") % DEBUGGING
+            disp(qNow); % DEBUGGING
+            disp("targetPose:") % DEBUGGING
+            disp(targetPose); % DEBUGGING
             qTarget = self.robotModel.model.ikcon(targetPose, qNow);
             qMatrix = jtraj(qNow, qTarget, steps);
             self.animateMovement(qMatrix);
@@ -33,7 +37,10 @@ classdef Robot < handle
             for i = 1:size(qMatrix, 1)
                 self.robotModel.model.animate(qMatrix(i, :));
                 eePose = self.robotModel.model.fkine(qMatrix(i, :)).T;
-                self.gripper.updatePosition(eePose);
+                self.gripper.updatePosition(eePose); 
+                %disp("1 for holding something!:"); % DEBUGGING
+                %disp(~isempty(self.holdingObject)); % DEBUGGING
+                
                 % Added so bread follows gripper when picked up
                 if ~isempty(self.holdingObject)  % Check if holdingObject is not empty
                     self.holdingObject.updatePosition(eePose(1:3, 4), eye(4));
@@ -105,5 +112,11 @@ classdef Robot < handle
             end
             self.moveArm(butterPose, steps);
         end
+        
+        %% Return to default position
+        function defaultPosition(self, defaultPose)
+            self.releaseObject();
+            self.moveArm(defaultPose, 50);
+        end    
     end
 end

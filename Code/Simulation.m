@@ -40,6 +40,7 @@ classdef Simulation < handle
             self.plotBread();
             self.runSim();
            
+           
         end
 
         %% Plot Environment
@@ -142,7 +143,6 @@ classdef Simulation < handle
         function runSim(self)
             % Main Control Loop
             for i = 1:length(self.breads)
-
                 % Current bread
                 currentBread = self.breads{i}; % Right now just using 1 bread for testing
 
@@ -160,21 +160,32 @@ classdef Simulation < handle
                 % Release bread to toaster
                 breadPose = transl(-0.75, 1, 1.2) * trotx(pi/2); % Added for rotation into toaster
                 currentBread.updatePosition(toasterPosition, breadPose);
-                self.r1.releaseObject();
-                currentBread.updateStatus('toasted'); % Update bread status to toasted - this changes bread to toast
+                % self.r1.releaseObject();
+                moveAwayMatrix = toasterPose;
+                moveAwayMatrix(3,4) = moveAwayMatrix(3, 4) + 1;
+                disp("MOVE AWAY MATRIX SHOULD BE 4X4");
+                disp(moveAwayMatrix);
+                self.r1.defaultPosition(moveAwayMatrix);
                 pause(0.5);
+                currentBread.updateStatus('toasted'); % Update bread status to toasted - this changes bread to toast
 
                 % This movement is funny, need to add collision avoidance
                 % or waypoint to fix
+                disp("CURRENT BREAD POSE:") % DEBUGGING
+                disp(currentBread);
+                self.r1.pickUp(currentBread);
                 butterPosition = [0.5, 1, 1.1];
                 butterPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Position where bread needs to be buttered - need to fix
+                disp("butterMoment"); % DEBUGGING
                 self.r1.moveArm(butterPose, 50);
                 pause(0.5);
 
                 % Probably need to fix this too but havent got here yet
                 breadPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Added for rotation onto plate
                 currentBread.updatePosition(butterPosition, breadPose);
-                self.r1.releaseObject();
+                moveAwayMatrix = butterPose;
+                moveAwayMatrix(3, 4) = moveAwayMatrix(3, 4) + 0.5;
+                self.r1.defaultPosition(moveAwayMatrix);
                 self.r2.butterBread(currentBread, butterPose, 50);
                 currentBread.updateStatus('buttered');
                 pause(0.5);
