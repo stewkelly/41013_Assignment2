@@ -50,10 +50,18 @@ classdef BreadObject < handle
 
             % Extract rotation and translation from the new pose
             R = newPose(1:3, 1:3);  % Rotation matrix
-            T = newPose(1:3, 4)';   % Translation vector
-        
+            
+            % Check matrix dimension - should be its own function
+            if ~isequal(size(newPosition), [1, 3])  % Check if matrix is not 3x1
+            if numel(newPosition) == 3  % If it contains 3 elements but in wrong shape
+                newPosition = reshape(newPosition, [1, 3]);  % Reshape to 3x1
+            else
+                error('Input matrix must contain exactly 3 elements for translation.');
+            end
+            end
+
             % Apply rotation and translation to each vertex
-            transformedVertices = (R * vertices')' + T;
+            transformedVertices = (R * vertices')' + newPosition;
         
             % Ensure vertices and faces are updated properly
             try
@@ -88,8 +96,17 @@ classdef BreadObject < handle
 
             % Extract the rotation matrix and translation vector from the current pose
             R = self.pose(1:3, 1:3);  % Rotation matrix (3x3)
-            T = self.pose(1:3, 4)';   % Translation vector (1x3)
-        
+            T = self.position;   % Translation vector (1x3)
+            
+            % Check matrix dimension - should be its own function
+            if ~isequal(size(T), [1, 3])  % Check if matrix is not 3x1
+            if numel(T) == 3  % If it contains 3 elements but in wrong shape
+                T = reshape(T, [1, 3]);  % Reshape to 3x1
+            else
+                error('Input matrix must contain exactly 3 elements for translation.');
+            end
+            end
+
             % Apply the current pose: Rotate vertices, then translate
             rotatedVertices = (R * vertices')';  % Rotate vertices
             transformedVertices = rotatedVertices + T;  % Translate vertices

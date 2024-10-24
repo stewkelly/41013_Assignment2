@@ -34,6 +34,11 @@ classdef Robot < handle
                 self.robotModel.model.animate(qMatrix(i, :));
                 eePose = self.robotModel.model.fkine(qMatrix(i, :)).T;
                 self.gripper.updatePosition(eePose);
+                % Added so bread follows gripper when picked up
+                if ~isempty(self.holdingObject)  % Check if holdingObject is not empty
+                    self.holdingObject.updatePosition(eePose(1:3, 4), eye(4));
+
+                end
                 pause(0.01);
             end
         end
@@ -60,6 +65,7 @@ classdef Robot < handle
             approachPose = transl(breadobject.position) * trotx(pi/2);
             self.moveArm(approachPose, 50);
             self.closeGripper(50, breadobject);
+            
         end
 
         %% Release Object

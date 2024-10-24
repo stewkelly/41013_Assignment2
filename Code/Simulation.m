@@ -18,6 +18,7 @@
        % Bread stacks on final plate
        % Rotation implemented - could simplify position to be derived from 4x4 rotation
             % matrix rather than from seperate variable
+       % Bread now follows gripper in 2/3 phases
 
 classdef Simulation < handle
     properties
