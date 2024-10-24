@@ -36,9 +36,10 @@ classdef BreadObject < handle
                 'EdgeLighting', 'none');
         end
 
-        function updatePosition(self, newPosition, newPose)
+        function updatePosition(self, newPose)
             % Update the object's position and move its mesh accordingly
-            self.position = newPosition;
+            self.position = newPose(1:3, 4);
+            newPosition = self.position;
             self.pose = newPose;
         
             % Load the vertices and colors from the PLY file
@@ -69,7 +70,7 @@ classdef BreadObject < handle
                     'Vertices', transformedVertices, ...
                     'FaceVertexCData', vertexColors);
                 drawnow;
-                disp(['Bread object moved to new position: ', mat2str(newPosition)]);
+                disp(['Bread object`` moved to new position: ', mat2str(newPosition)]);
             catch ME
                 disp('Error updating bread object position:');
                 disp(ME.message);

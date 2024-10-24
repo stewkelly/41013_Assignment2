@@ -43,7 +43,7 @@ classdef Robot < handle
                 
                 % Added so bread follows gripper when picked up
                 if ~isempty(self.holdingObject)  % Check if holdingObject is not empty
-                    self.holdingObject.updatePosition(eePose(1:3, 4), eye(4));
+                    self.holdingObject.updatePosition(eePose);
 
                 end
                 pause(0.01);
@@ -79,15 +79,18 @@ classdef Robot < handle
         function releaseObject(self)
             self.gripper.openGripper(50);
             if ~isempty(self.holdingObject)
+         
+        % Updates status in Simulation - this conflicts with current setup
                 % Update object's status based on current state
-                currentFile = self.holdingObject.file;
-                switch currentFile
-                    case 'bread.ply'
-                        self.holdingObject.updateStatus('toasted');
-                    case 'toast.ply'
-                        self.holdingObject.updateStatus('buttered');
-                    case 'toastButtered.ply'
-                end
+                % currentFile = self.holdingObject.file;
+                % switch currentFile
+                %    case 'bread.ply'
+                %       self.holdingObject.updateStatus('toasted');
+                %    case 'toast.ply'
+                %       self.holdingObject.updateStatus('buttered');
+                %    case 'toastButtered.ply'
+                % end
+                
                 self.holdingObject = [];
             end
         end
@@ -110,7 +113,11 @@ classdef Robot < handle
                 self.moveArm(butterPose2, steps);
                 pause(0.1); 
             end
+            currentBread.updateStatus('buttered');
+            butterPose(3, 4) = butterPose(3, 4) + 1;
             self.moveArm(butterPose, steps);
+            
+
         end
         
         %% Return to default position

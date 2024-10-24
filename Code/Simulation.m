@@ -18,7 +18,11 @@
        % Bread stacks on final plate
        % Rotation implemented - could simplify position to be derived from 4x4 rotation
             % matrix rather than from seperate variable
-       % Bread now follows gripper in 2/3 phases
+       % Bread now follows gripper
+       % Bread changes state correctly
+       % Added toaster pop animation 
+       % XArm drops bread for toasting + spreading to be completed
+
 
 classdef Simulation < handle
     properties
@@ -152,14 +156,15 @@ classdef Simulation < handle
 
                 % Move to toaster (need to fix toaster position and orientation)
                 % Also need to make animation smoother
-                toasterPosition = [-0.75, 1, 1.2];
-                toasterPose = transl(-0.75, 1, 1.2) * trotz(pi/2);
+                toasterPosition = [-0.64, 1.1, 1.2];
+                toasterPose = transl(toasterPosition) * trotx(pi/2);
                 self.r1.moveArm(toasterPose, 50);
                 pause(0.5);
         
                 % Release bread to toaster
-                breadPose = transl(-0.75, 1, 1.2) * trotx(pi/2); % Added for rotation into toaster
-                currentBread.updatePosition(toasterPosition, breadPose);
+                toasterDownPosition = [-0.64, 1.1, 1.1];
+                breadPose = transl(toasterDownPosition) * trotx(pi/2); % Added for rotation into toaster
+                currentBread.updatePosition(breadPose);
                 % self.r1.releaseObject();
                 moveAwayMatrix = toasterPose;
                 moveAwayMatrix(3,4) = moveAwayMatrix(3, 4) + 1;
@@ -168,7 +173,9 @@ classdef Simulation < handle
                 self.r1.defaultPosition(moveAwayMatrix);
                 pause(0.5);
                 currentBread.updateStatus('toasted'); % Update bread status to toasted - this changes bread to toast
-
+                
+                breadPose = transl(toasterPosition) * trotx(pi/2); % Added for rotation into toaster
+                currentBread.updatePosition(breadPose);
                 % This movement is funny, need to add collision avoidance
                 % or waypoint to fix
                 disp("CURRENT BREAD POSE:") % DEBUGGING
@@ -182,12 +189,12 @@ classdef Simulation < handle
 
                 % Probably need to fix this too but havent got here yet
                 breadPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Added for rotation onto plate
-                currentBread.updatePosition(butterPosition, breadPose);
+                currentBread.updatePosition(breadPose);
                 moveAwayMatrix = butterPose;
                 moveAwayMatrix(3, 4) = moveAwayMatrix(3, 4) + 0.5;
                 self.r1.defaultPosition(moveAwayMatrix);
                 self.r2.butterBread(currentBread, butterPose, 50);
-                currentBread.updateStatus('buttered');
+                % currentBread.updateStatus('buttered');
                 pause(0.5);
 
                 % Pick up bread and wait
@@ -195,9 +202,9 @@ classdef Simulation < handle
                 pause(0.5);
                 
                 finalPosition = [0, 0.45, self.stack];
-                finalPose = transl(0, 0.45, self.stack) * trotz(pi/2);
+                finalPose = transl(finalPosition) * trotz(pi/2);
                 self.r1.moveArm(finalPose, 50);
-                currentBread.updatePosition(finalPosition, finalPose);
+                currentBread.updatePosition(finalPose);
                 self.stack = self.stack + 0.05;
                 self.r1.releaseObject();
                 pause(0.5);
