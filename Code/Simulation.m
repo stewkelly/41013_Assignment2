@@ -154,7 +154,7 @@ classdef Simulation < handle
             %hold on;
             q2 = zeros(1, self.r2.robotModel.model.n);
             dobotEnd = self.r2.robotModel.model.fkine(q2).t;
-            dobotEnd(2) = dobotEnd(2) - 0.4;
+            %dobotEnd(2) = dobotEnd(2) - 0.4;
             %disp("DOBOT END POSITION") % DEBUGGING
             %     disp(dobotEnd'); % DEBUGGING
             self.knife = BreadObject(dobotEnd', poses, 'knife.ply');
@@ -190,8 +190,8 @@ classdef Simulation < handle
             for i = 1:length(self.breads)
                 % Current bread
                 currentBread = self.breads{i}; % Right now just using 1 bread for testing
-                %knifeObject = self.knife;
-                %self.r2.pickUp(knifeObject);
+                knifeObject = self.knife;
+                self.r2.pickUp(knifeObject);
                 % Pick up bread and wait
                 self.r1.pickUp(currentBread);
                 pause(0.5);
