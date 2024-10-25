@@ -151,16 +151,29 @@ classdef Simulation < handle
                  self.breads{i} = BreadObject(pos, poses, 'bread.ply');
 
              end
+            
+         
+                
             %hold on;
-            q2 = zeros(1, self.r2.robotModel.model.n);
-            dobotEnd = self.r2.robotModel.model.fkine(q2).t;
+            %q2 = zeros(1, self.r2.robotModel.model.n);
+            %dobotEnd = self.r2.robotModel.model.fkine(q2).t;
+       
             %dobotEnd(2) = dobotEnd(2) - 0.4;
             %disp("DOBOT END POSITION") % DEBUGGING
             %     disp(dobotEnd'); % DEBUGGING
-            self.knife = BreadObject(dobotEnd', poses, 'knife.ply');
-            %knifeObject = BreadObject([1, 1, 1], poses, 'knife.ply');
+
+
+            % Comment out to get rid of knife
+            % ----------------------------------------
+
+            % self.knife = BreadObject([0.8, 1.3, 1.1], knifePose, 'knife.ply');
+            % knifePose = transl(0.8, 1.3, 1.1) * trotz(pi);
+
+            % ----------------------------------------
+ 
            % pos = breadPositions(1, :);
            % self.breads{1} = BreadObject(pos, 'bread.ply');
+         
         end
 
         %% Gui Buttons
@@ -190,8 +203,14 @@ classdef Simulation < handle
             for i = 1:length(self.breads)
                 % Current bread
                 currentBread = self.breads{i}; % Right now just using 1 bread for testing
-                knifeObject = self.knife;
-                self.r2.pickUp(knifeObject);
+              
+               % ----------------------------------------
+                % Comment out to get rid of knife
+               % knifeObject = self.knife;
+               % self.r2.pickUp(knifeObject);
+               % defaultButterPose = transl(0.4400, 1.5000, 1.4712) * trotx(pi/2);
+               % self.r2.moveArm(defaultButterPose, 50);
+               % ---------------------------------------- 
                 % Pick up bread and wait
                 self.r1.pickUp(currentBread);
                 pause(0.5);
@@ -230,7 +249,7 @@ classdef Simulation < handle
                 pause(0.5);
 
                 % Probably need to fix this too but havent got here yet
-                breadPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Added for rotation onto plate
+                breadPose = transl(0.5, 1, 1.1) * trotz(pi); % Added for rotation onto plate
                 currentBread.updatePosition(breadPose);
                 moveAwayMatrix = butterPose;
                 moveAwayMatrix(3, 4) = moveAwayMatrix(3, 4) + 0.5;
