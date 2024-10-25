@@ -32,6 +32,7 @@ classdef Simulation < handle
         breads;      % Array of BreadObject instances
         stack;       % For incrimenting stake height on plate
         guiApp;
+        knife;
     end
 
     methods
@@ -71,6 +72,7 @@ classdef Simulation < handle
             PlaceObject('plate.ply', [0, 1.5, 1.1]);
             PlaceObject('plate.ply', [0.5, 1, 1.1]);
             PlaceObject('toaster.ply', [-0.5, 1, 1]);
+        
 
             % Floor
             tileTexture = imread('tile.jpg');
@@ -118,6 +120,10 @@ classdef Simulation < handle
                 self.r2.robotModel.model.animate(q2);
                 self.r1.currentPos = q1;
                 self.r2.currentPos = q2;
+                
+               % dobotEnd = self.r2.robotModel.model.fkine(q2).t;
+               % PlaceObject('knife.ply', dobotEnd');
+                %hold on;
             
         end
 
@@ -140,10 +146,19 @@ classdef Simulation < handle
 
             for i = 1:length(breadPositions)
                  pos = breadPositions(i, :);
+                 disp("BREAD POSITION") % DEBUGGING
+                 disp(pos); % DEBUGGING
                  self.breads{i} = BreadObject(pos, poses, 'bread.ply');
 
              end
-        
+            %hold on;
+            q2 = zeros(1, self.r2.robotModel.model.n);
+            dobotEnd = self.r2.robotModel.model.fkine(q2).t;
+            dobotEnd(2) = dobotEnd(2) - 0.4;
+            %disp("DOBOT END POSITION") % DEBUGGING
+            %     disp(dobotEnd'); % DEBUGGING
+            self.knife = BreadObject(dobotEnd', poses, 'knife.ply');
+            %knifeObject = BreadObject([1, 1, 1], poses, 'knife.ply');
            % pos = breadPositions(1, :);
            % self.breads{1} = BreadObject(pos, 'bread.ply');
         end
@@ -175,7 +190,8 @@ classdef Simulation < handle
             for i = 1:length(self.breads)
                 % Current bread
                 currentBread = self.breads{i}; % Right now just using 1 bread for testing
-
+                %knifeObject = self.knife;
+                %self.r2.pickUp(knifeObject);
                 % Pick up bread and wait
                 self.r1.pickUp(currentBread);
                 pause(0.5);
@@ -208,7 +224,7 @@ classdef Simulation < handle
                 disp(currentBread);
                 self.r1.pickUp(currentBread);
                 butterPosition = [0.5, 1, 1.1];
-                butterPose = transl(0.5, 1, 1.1) * trotz(pi/2); % Position where bread needs to be buttered - need to fix
+                butterPose = transl(butterPosition) * trotz(pi/2); % Position where bread needs to be buttered - need to fix
                 disp("butterMoment"); % DEBUGGING
                 self.r1.moveArm(butterPose, 50);
                 pause(0.5);
@@ -219,6 +235,8 @@ classdef Simulation < handle
                 moveAwayMatrix = butterPose;
                 moveAwayMatrix(3, 4) = moveAwayMatrix(3, 4) + 0.5;
                 self.r1.defaultPosition(moveAwayMatrix);
+                disp("BUTTER POSE:"); % DEBUGGING
+                disp(butterPose); % DEBUGGING
                 self.r2.butterBread(currentBread, butterPose, 50);
                 % currentBread.updateStatus('buttered');
                 pause(0.5);

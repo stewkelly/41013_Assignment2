@@ -99,7 +99,7 @@ classdef Robot < handle
         function butterBread(self, currentBread, butterPose, steps)
             % Move to the initial butter pose
             self.moveArm(butterPose, steps);
-
+            
             offset = 0.05; 
             butterPose1 = butterPose * transl(0, -offset, 0); 
             butterPose2 = butterPose * transl(0, offset, 0);  

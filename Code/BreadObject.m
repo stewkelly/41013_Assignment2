@@ -17,8 +17,13 @@ classdef BreadObject < handle
         function PlotObject(self)
             % Load the object model and plot it at the given position
             [faces, vertices, data] = plyread(self.file, 'tri');
-            vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
-
+           if isfield(data.vertex, 'red') && isfield(data.vertex, 'green') && isfield(data.vertex, 'blue')
+                vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+            else
+                % Default to grey color if color fields are missing
+                vertexColors = repmat([0.5, 0.5, 0.5], size(vertices, 1), 1);
+            end
+     
             % Plot the object at the initial position and store the mesh handle
             R = self.pose(1:3, 1:3);  % Extract the rotation matrix from the pose
             rotatedVertices = (R * vertices')';
@@ -44,8 +49,12 @@ classdef BreadObject < handle
         
             % Load the vertices and colors from the PLY file
             [faces, vertices, data] = plyread(self.file, 'tri');
-            vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
-        
+            if isfield(data.vertex, 'red') && isfield(data.vertex, 'green') && isfield(data.vertex, 'blue')
+                vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+            else
+                % Default to grey color if color fields are missing
+                vertexColors = repmat([0.5, 0.5, 0.5], size(vertices, 1), 1);
+            end
             % Changed how verticies are shifted - added extra step to account
             % for rotation - appears in changeFile as well
 
@@ -128,6 +137,9 @@ classdef BreadObject < handle
         function updateStatus(self, status)
             % Update the object's status and change its PLY file accordingly
             switch status
+                case 'bread'
+                    self.changeFile('bread.ply');
+                     disp('Bread is bread.');
                 case 'toasted'
                     self.changeFile('toast.ply');
                     disp('Bread has been toasted.');
@@ -136,6 +148,9 @@ classdef BreadObject < handle
                     disp('Toast has been buttered.');
                 case 'released'
                     disp('Object has been released.');
+                case 'knife'
+                    self.changeFile('knife.ply');
+                    disp('object is a knife.');
                 otherwise
                     disp(['Unknown status: ', status]);
             end
