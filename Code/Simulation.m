@@ -6,9 +6,9 @@
  % Most of the tweaks to positions will be in this class but you may have to edit some of the movement 
  % and animation functions in the robot class to get it smoother 
 
- % > Need to add the knife.ply to the robot for buttering the bread
- % > GUI for the simulation
- % > Collision avoidance
+ % > Need to add the knife.ply to the robot for buttering the bread - Loaded in and interactable, Orients strangely and ruins r2 pathing
+ % > GUI for the simulation - Complete skin, needs functionality
+ % > Collision avoidance - Detects collisions, needs route recalibration
  % > E Stop button functionality
 
  % I tried to comment most of it but if you have any questions about code, just message me
@@ -23,7 +23,12 @@
        % Added toaster pop animation 
        % XArm drops bread for toasting + spreading to be completed
        % Added Gui - need impliment eStop functionality but buttons work
-
+       % Implimented Resolve Motion Rate Control
+            % Colision added and approach angles need tweeking for accurate movement
+       % Knife added but picks up inside arm of dobot
+            % Needs to be rotated + make it face toast consistantly
+       % Added collision detection (Robot class) with object vector (Simulation Class)
+            % Needs route recalculation - currently just outputs that there has been a collision
 
 classdef Simulation < handle
     properties
@@ -33,6 +38,15 @@ classdef Simulation < handle
         stack;       % For incrimenting stake height on plate
         guiApp;
         knife;
+        table;
+        table2;
+        table3;
+        plate;
+        plate2;
+        plate3;
+        fence;
+        toaster;
+        pointCloudVector;
     end
 
     methods
@@ -50,8 +64,31 @@ classdef Simulation < handle
             self.plotRobots();
             self.plotBread();
             self.runSim();
+            self.loadPointCloud();
+            self.pointCloudVector = [];
             
            
+        end
+        
+        %% Point Clouds for Collisions
+        function pointCloudGlobal = loadPointCloud(self, plyFile, coordinates)
+            % Original place function still used
+            PlaceObject(plyFile, coordinates);
+            
+            % Load PLY as a point cloud object
+            pointCloudLocal = pcread(plyFile); 
+            
+            % Extract points from point cloud object
+            pointsLocal = pointCloudLocal.Location; 
+            
+            % Define transformation from object frame to global frame
+            objectToWorld = transl(coordinates); % Transformation matrix (adjust based on your data)
+            
+            % Transform points to global frame
+            pointsGlobal = (objectToWorld * [pointsLocal, ones(size(pointsLocal, 1), 1)]')'; % Add homogenous coordinates
+            
+            % Remove homogenous coordinate
+            pointCloudGlobal = pointsGlobal(:, 1:3); 
         end
 
         %% Plot Environment
@@ -60,19 +97,26 @@ classdef Simulation < handle
             axis equal;
 
             % Place non-bread objects in the environment
-            PlaceObject('table.ply', [0, 0, 0]);
-            PlaceObject('table.ply', [0, 1.5, 0]);
-            PlaceObject('table.ply', [2, 0, 0]);
+            %PlaceObject('table.ply', [0, 0, 0]);
+            self.table = self.loadPointCloud('table.ply', [0, 0, 0]);
+            self.table2 = self.loadPointCloud('table.ply', [0, 1.5, 0]);
+            self.table3 = self.loadPointCloud('table.ply', [2, 0, 0]);
             PlaceObject('person.ply', [0, -1, 0]);
             PlaceObject('person.ply', [2, -1, 0]);
             PlaceObject('emergencyStopButton.ply', [2.5, 0, 1]);
             PlaceObject('emergencyStopButton.ply', [1.5, 0, 1]);
-            PlaceObject('fenceAssembly.ply', [0.05, 2.1, -0.5]);
-            PlaceObject('plate.ply', [0, 0.45, 1.1]);
-            PlaceObject('plate.ply', [0, 1.5, 1.1]);
-            PlaceObject('plate.ply', [0.5, 1, 1.1]);
-            PlaceObject('toaster.ply', [-0.5, 1, 1]);
-        
+            self.fence = self.loadPointCloud('fenceAssembly.ply', [0.05, 2.1, -0.5]);
+            self.plate = self.loadPointCloud('plate.ply', [0, 0.45, 1.1]);
+            self.plate2 = self.loadPointCloud('plate.ply', [0, 1.5, 1.1]);
+            self.plate3 = self.loadPointCloud('plate.ply', [0.5, 1, 1.1]);
+            self.toaster = self.loadPointCloud('toaster.ply', [-0.5, 1, 1]);
+            
+            % Stores objects in vector - probably a cleaner way to do this
+            self.pointCloudVector = {self.table, self.table2, self.table3,... 
+            self.fence, self.plate, self.plate2, self.plate3, self.toaster};
+            
+            disp("VECTOR LENGTH");
+            disp(length(self.pointCloudVector));
 
             % Floor
             tileTexture = imread('tile.jpg');
@@ -199,6 +243,9 @@ classdef Simulation < handle
 
         %% Run Simulation
         function runSim(self)
+            % Passes obsticals to Robot platforms
+            self.r1.obsticalVectorCallback(self.pointCloudVector);
+            self.r2.obsticalVectorCallback(self.pointCloudVector);
             % Main Control Loop
             for i = 1:length(self.breads)
                 % Current bread

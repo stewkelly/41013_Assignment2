@@ -3,7 +3,9 @@ classdef Robot < handle
         robotModel     % Robot model
         gripper        % Gripper instance
         currentPos     % Current joint positions
-        holdingObject  
+        holdingObject
+        objectAvoidVector
+        
     end
 
     methods
@@ -17,7 +19,99 @@ classdef Robot < handle
             gripperTr = self.robotModel.model.fkine(self.currentPos).T;
             self.gripper = Gripper(gripperTr);
             self.holdingObject = [];
+            self.objectAvoidVector = [];
         end
+        
+        %% Accepts and Save Obstical Vector from Simulation
+        function obsticalVectorCallback(self, pointCloudVector)
+            self.objectAvoidVector = pointCloudVector;
+            disp("IN ROBOT OBJECT AVOID VECTOR:");
+            disp(length(self.objectAvoidVector));
+        end
+        
+        %% Collision Check
+        function isCollision = checkEllipsoidCollision(self, currentJoints)
+            % Extract points from point cloud
+            
+            % Define sphere around end effector - determines sensitivity
+            radii = [0.3, 0.2, 0.4];
+            % Define end effector
+            eePose = self.robotModel.model.fkine(currentJoints).T;
+            
+            % Iterate through objects
+            for j = 1:size(self.objectAvoidVector, 1)+1
+            % Extract points from point cloud
+            points = self.objectAvoidVector{j};
+            
+                % Iterate through points in point cloud
+                for i = 1:size(points, 1)
+                % Compare point location to end effector
+                shiftedPoints = points(i, :) - eePose(1:3, 4)';
+                % Calculate normalized squared distances based on elipsiod
+                normalizedDistances = (shiftedPoints(:, 1) / radii(1)).^2 + ...
+                                      (shiftedPoints(:, 2) / radii(2)).^2 + ...
+                                      (shiftedPoints(:, 3) / radii(3)).^2;
+            
+                % Check if any point lies within the ellipsoid
+                isCollision = any(normalizedDistances <= 1);
+                   if isCollision == true % Returns bool
+                        break;
+                   end
+
+                end
+            end
+        end
+
+        %% Velocity Kinematics
+        function qMatrix = moveWithVelocityKinematics(self, goalPose, currentJointConfig)
+            dt = 0.1;   % Time step
+            lambda = 0.1; % Damping factor
+            maxSteps = 100; % Safety limit for iterations
+            i = 1; % MatLab starts values from 1 instead of 0 apparently
+        
+            while i <= maxSteps
+                % Calculate current end-effector pose
+                currentPose = self.robotModel.model.fkine(currentJointConfig);
+        
+                % Compute error in Cartesian space
+                error = tr2delta(currentPose, goalPose);
+        
+                % Define desired Cartesian velocity (e.g., proportional to error)
+                v = 0.5 * error;  % Adjust scaling as needed
+        
+                % Compute the Jacobian matrix
+                J = self.robotModel.model.jacob0(currentJointConfig);
+        
+                % Damped least squares solution for joint velocities
+                J_dls = (J' * J + lambda^2 * eye(size(J, 2))) \ J';
+                q_dot = J_dls * v;
+        
+                % Update joint configuration
+                currentJointConfig = currentJointConfig + q_dot' * dt;
+                % Adds joint configuration to next row of control matrix
+                qMatrix(i, :) = currentJointConfig;
+                % Iterates as amount of steps is undefined
+                i = i + 1;
+                % Collision Detection
+                collisionDetected = self.checkEllipsoidCollision(currentJointConfig);
+                
+                % Collision control loop - only detects at the moment
+                    % Needs path correction implimented here
+                if collisionDetected
+                    disp('Collision detected!');
+                else
+                    disp('No collision.');
+                end
+
+                % Check for convergence - if EE has reached destination
+                if norm(error) < 0.01
+                    break;
+                end
+            end
+        
+            disp('Movement complete.');
+        end
+
 
         %% Move Arm
         function moveArm(self, targetPose, steps)
@@ -27,9 +121,17 @@ classdef Robot < handle
             disp("targetPose:") % DEBUGGING
             disp(targetPose); % DEBUGGING
             qTarget = self.robotModel.model.ikcon(targetPose, qNow);
-            qMatrix = jtraj(qNow, qTarget, steps);
+            
+          %JTraj Movement: 
+            %qMatrix = jtraj(qNow, qTarget, steps);
+
+          %ResolveMotionRateControl Movement:
+            qMatrix = self.moveWithVelocityKinematics(targetPose, qNow);
+            
             self.animateMovement(qMatrix);
             self.currentPos = qTarget;
+            %self.currentPos = self.robotModel.model.getpos();
+
         end
 
         %% Animate Movement
