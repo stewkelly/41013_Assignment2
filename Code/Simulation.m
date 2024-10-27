@@ -29,6 +29,8 @@
             % Needs to be rotated + make it face toast consistantly
        % Added collision detection (Robot class) with object vector (Simulation Class)
             % Needs route recalculation - currently just outputs that there has been a collision
+       % EStop Currently uses uiwait which is against the assessment guide
+            % Need to change this but works well enough for video
 
 classdef Simulation < handle
     properties
@@ -47,6 +49,13 @@ classdef Simulation < handle
         fence;
         toaster;
         pointCloudVector;
+        status = 'stopped';  % Track the state of the simulation
+    end
+    
+    events
+            eStopTriggered;
+            readyTriggered;
+            startTriggered;
     end
 
     methods
@@ -57,6 +66,11 @@ classdef Simulation < handle
             
             self.guiApp = gui;
             self.guiApp.setSimulationInstance(self); % Set the simulation instance
+            
+            % Event listeners
+            addlistener(self, 'eStopTriggered', @(~, ~) self.handleEStop());
+            addlistener(self, 'readyTriggered', @(~, ~) self.handleReady());
+            addlistener(self, 'startTriggered', @(~, ~) self.handleStart());
 
             figure('Name', 'Simulation');
             self.stack = 1.05;
@@ -219,26 +233,43 @@ classdef Simulation < handle
            % self.breads{1} = BreadObject(pos, 'bread.ply');
          
         end
+        
+        %% Interrupt Callbacks
+        function stopButtonCallback(self)
+            notify(self, 'eStopTriggered');  % Trigger eStop event
+        end
+        
+        function readyButtonCallback(self)
+            notify(self, 'readyTriggered');  % Trigger ready event
+        end
+        
+        function startButtonCallback(self)
+            notify(self, 'startTriggered');  % Trigger start event
+        end
+
 
         %% Gui Buttons
         function handleEStop(self)
-        % Logic to handle emergency stop
-        disp('Emergency Stop Triggered');
-        % Implement stopping the simulation
+            disp('Emergency Stop Triggered');
+            self.status = 'stopped';
+            uiwait();  % Pause execution
         end
-    
+        
         function handleReady(self)
-        % Logic to handle system ready
-        disp('System Ready');
-        % Implement any necessary preparation for simulation
-         end
-    
-        function handleStart(self)
-        % Logic to handle starting/resuming simulation
-        disp('Simulation Started');
-        % Implement starting or resuming the simulation
-        self.runSim();
+            disp('System Ready');
+            self.status = 'ready';
         end
+        
+        function handleStart(self)
+            if strcmp(self.status, 'ready')
+                disp('Simulation Started');
+                self.status = 'running';
+                uiresume();  % Resume execution
+            else
+                disp('System not ready. Press "Ready" first.');
+            end
+        end
+
 
 
         %% Run Simulation
@@ -248,6 +279,9 @@ classdef Simulation < handle
             self.r2.obsticalVectorCallback(self.pointCloudVector);
             % Main Control Loop
             for i = 1:length(self.breads)
+                %if strcmp(self.status, 'stopped')
+                %    uiwait();  % Wait until uiresume() is called
+                %end
                 % Current bread
                 currentBread = self.breads{i}; % Right now just using 1 bread for testing
               

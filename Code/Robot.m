@@ -172,6 +172,7 @@ classdef Robot < handle
         function pickUp(self, breadobject)
             % Approach the object
             approachPose = transl(breadobject.position) * trotx(pi/2);
+            %approachPose = transl(breadobject.position);
             self.moveArm(approachPose, 50);
             self.closeGripper(50, breadobject);
             
