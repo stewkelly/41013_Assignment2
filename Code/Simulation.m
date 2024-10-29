@@ -82,13 +82,12 @@ classdef Simulation < handle
             %configurePin(self.arduinoObj, "D3", "Pullup");
             %configurePin(self.arduinoObj, "D4", "Pullup");
             %cleanupObj = onCleanup(@() self.cleanupArduino);
+            %self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
+            %                  'Period', 0.5, ... % Adjust interval as needed
+            %                  'TimerFcn', @(~,~)self.readArduinoData);
+
        %-----------------------------------------------------------------      
-            self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
-                              'Period', 0.5, ... % Adjust interval as needed
-                              'TimerFcn', @(~,~)self.readArduinoData);
-
-
-            
+           
             % Event listeners
             addlistener(self, 'eStopTriggered', @(~, ~) self.handleEStop());
             addlistener(self, 'readyTriggered', @(~, ~) self.handleReady());
@@ -330,9 +329,9 @@ classdef Simulation < handle
         function runSim(self)
             % Passes obsticals to Robot platforms
             start(self.eStopTimer);
-            start(self.arduinoTimer);
-            self.r1.obsticalVectorCallback(self.pointCloudVector);
-            self.r2.obsticalVectorCallback(self.pointCloudVector);
+            %start(self.arduinoTimer);
+            %self.r1.obsticalVectorCallback(self.pointCloudVector);
+            %self.r2.obsticalVectorCallback(self.pointCloudVector);
             % Main Control Loop
             for i = 1:length(self.breads)
                 %if strcmp(self.status, 'stopped')
