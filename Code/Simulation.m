@@ -78,14 +78,14 @@ classdef Simulation < handle
             
    
        %-----------------Comment out to remove arduino--------------------
-            %self.arduinoObj = arduino;
-            %configurePin(self.arduinoObj, "D2", "Pullup");
-            %configurePin(self.arduinoObj, "D3", "Pullup");
-            %configurePin(self.arduinoObj, "D4", "Pullup");
-            %cleanupObj = onCleanup(@() self.cleanupArduino);
-            %self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
-            %                  'Period', 0.5, ... % Adjust interval as needed
-            %                  'TimerFcn', @(~,~)self.readArduinoData);
+            self.arduinoObj = arduino;
+            configurePin(self.arduinoObj, "D2", "Pullup");
+            configurePin(self.arduinoObj, "D3", "Pullup");
+            configurePin(self.arduinoObj, "D4", "Pullup");
+            cleanupObj = onCleanup(@() self.cleanupArduino);
+            self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
+                              'Period', 0.5, ... % Adjust interval as needed
+                              'TimerFcn', @(~,~)self.readArduinoData);
 
        %-----------------------------------------------------------------      
            
@@ -256,7 +256,7 @@ classdef Simulation < handle
 
         %% Check eStop
         function checkEStop(self)
-            if strcmp(self.status, 'stopped')  || strcmp(self.r1.status, 'stopped')
+            if strcmp(self.status, 'stopped')  || strcmp(self.r1.status, 'collided')
                 disp('Emergency Stop Active!');
                 notify(self, 'eStopTriggered');  % Trigger the event
                 stop(self.eStopTimer);  % Stop the timer to halt execution
@@ -330,7 +330,7 @@ classdef Simulation < handle
         function runSim(self)
             % Passes obsticals to Robot platforms
             start(self.eStopTimer);
-            %start(self.arduinoTimer);
+            start(self.arduinoTimer);
             %self.r1.obsticalVectorCallback(self.pointCloudVector);
             %self.r2.obsticalVectorCallback(self.pointCloudVector);
             % Main Control Loop

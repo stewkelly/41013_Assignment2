@@ -81,7 +81,7 @@ classdef Robot < handle
                 % Collision Check
                 if self.collisionDetector.checkCollision(qNext, self.robotModel.model)
                     disp('Collision Detected. Altering Pose.')
-                    self.status = 'stopped'
+                    self.status = 'collided';
                     % alteredPose = self.avoidCollision(goalPose);
                     % self.moveRMRC(alteredPose);
                     return;
