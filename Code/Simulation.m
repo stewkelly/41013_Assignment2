@@ -149,7 +149,7 @@ classdef Simulation < handle
             PlaceObject('emergencyStopButton.ply', [2.5, 0, 1]);
             PlaceObject('emergencyStopButton.ply', [1.5, 0, 1]);
             self.fence = self.loadPointCloud('fenceAssembly.ply', [0.05, 2.1, -0.5]);
-            self.plate = self.loadPointCloud('plate.ply', [-0, 0.5, 1.05]);
+            self.plate = self.loadPointCloud('plate.ply', [-0.07, 0.5, 1.05]);
             self.plate2 = self.loadPointCloud('plate.ply', [0, 1.4, 1.05]);
             self.toaster = self.loadPointCloud('toaster.ply', [-0.5, 1, 1]);
 
