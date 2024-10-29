@@ -1,38 +1,32 @@
-%% Need to do
- % I've written a list of todo throughout the control loop. 
- % It is mostly done just need to tweak the animations and update some of the positions to make it look better
- % If you feel like doing the collision avoidance, feel free 
- 
- % Most of the tweaks to positions will be in this class but you may have to edit some of the movement 
- % and animation functions in the robot class to get it smoother 
+% Changes 24/10/24:
+% Iterates through bread pieces
+% Bread stacks on final plate
+% Rotation implemented - could simplify position to be derived from 4x4 rotation
+% matrix rather than from seperate variable
+% Bread now follows gripper
+% Bread changes state correctly
+% Added toaster pop animation
+% XArm drops bread for toasting + spreading to be completed
+% Added Gui - need impliment eStop functionality but buttons work
+% Implimented Resolve Motion Rate Control
+% Colision added and approach angles need tweeking for accurate movement
+% Knife added but picks up inside arm of dobot
+% Needs to be rotated + make it face toast consistantly
+% Added collision detection (Robot class) with object vector (Simulation Class)
+% Needs route recalculation - currently just outputs that there has been a collision
+% EStop Currently uses uiwait which is against the assessment guide
+% Need to change this but works well enough for video
+% eStop functionality added within confines of assessment criteria
+% Passes status from timer callback to Robot, if statment during movement process to stop motion
 
- % > Need to add the knife.ply to the robot for buttering the bread - Loaded in and interactable, Orients strangely and ruins r2 pathing
- % > GUI for the simulation - Complete skin, needs functionality
- % > Collision avoidance - Detects collisions, needs route recalibration
- % > E Stop button functionality
+% 29/10 Changes -------------
+% > Updated RMRC control in robot class
+% > Cleaned up Robot class
+% > Changed environment slightly by moving robots and objects for better movement 
+% > Changed steps in main loop so buttering now happens over toaster
+% > Smoothed out main loop to avoid collisions
+% > Created CollisionDetection class - kinda works but commented the avoidance out for demo cause it can freeze
 
- % I tried to comment most of it but if you have any questions about code, just message me
-
- % Changes 24/10/24: 
-       % Iterates through bread pieces
-       % Bread stacks on final plate
-       % Rotation implemented - could simplify position to be derived from 4x4 rotation
-            % matrix rather than from seperate variable
-       % Bread now follows gripper
-       % Bread changes state correctly
-       % Added toaster pop animation 
-       % XArm drops bread for toasting + spreading to be completed
-       % Added Gui - need impliment eStop functionality but buttons work
-       % Implimented Resolve Motion Rate Control
-            % Colision added and approach angles need tweeking for accurate movement
-       % Knife added but picks up inside arm of dobot
-            % Needs to be rotated + make it face toast consistantly
-       % Added collision detection (Robot class) with object vector (Simulation Class)
-            % Needs route recalculation - currently just outputs that there has been a collision
-       % EStop Currently uses uiwait which is against the assessment guide
-            % Need to change this but works well enough for video
-       % eStop functionality added within confines of assessment criteria
-            % Passes status from timer callback to Robot, if statment during movement process to stop motion
 
 classdef Simulation < handle
     properties
