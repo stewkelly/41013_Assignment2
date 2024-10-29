@@ -411,7 +411,7 @@ classdef Simulation < handle
                 currentBread.updateStatus('completed'); 
                 disp('Buttered toast placed on the final plate.');
                 pause(1.0);
-                self.r1.moveArm(self.home);
+                self.r1.moveRMRC(self.home);
             end
         end
     end
