@@ -18,6 +18,7 @@
 % Need to change this but works well enough for video
 % eStop functionality added within confines of assessment criteria
 % Passes status from timer callback to Robot, if statment during movement process to stop motion
+% Arduino eStop added - only works on first run due to port definition bug
 
 % 29/10 Changes -------------
 % > Updated RMRC control in robot class
@@ -66,8 +67,6 @@ classdef Simulation < handle
         function self = Simulation()
             clf;
             close all;
-            self.clearArduinoConnections();
-            
 
             self.guiApp = gui;
             self.guiApp.setSimulationInstance(self); % Set the simulation instance
@@ -77,11 +76,14 @@ classdef Simulation < handle
                                     'TimerFcn', @(~,~)self.checkEStop);
             
    
-            self.arduinoObj = arduino("/dev/cu.usbmodem101", "Uno", Libraries = ["APDS9960","Adafruit/MotorShieldV2","CAN","I2C","RotaryEncoder","SPI","Servo","ShiftRegister"]);
-            configurePin(self.arduinoObj, "D2", "Pullup");
-            configurePin(self.arduinoObj, "D3", "Pullup");
-            configurePin(self.arduinoObj, "D4", "Pullup");
-             self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
+       %-----------------Comment out to remove arduino--------------------
+            %self.arduinoObj = arduino;
+            %configurePin(self.arduinoObj, "D2", "Pullup");
+            %configurePin(self.arduinoObj, "D3", "Pullup");
+            %configurePin(self.arduinoObj, "D4", "Pullup");
+            %cleanupObj = onCleanup(@() self.cleanupArduino);
+       %-----------------------------------------------------------------      
+            self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
                               'Period', 0.5, ... % Adjust interval as needed
                               'TimerFcn', @(~,~)self.readArduinoData);
 
@@ -102,16 +104,19 @@ classdef Simulation < handle
             self.runSim();
         end
         
-
-        function clearArduinoConnections(self)
+        %% Cleanup on Exit for Arduino
+        function cleanupArduino(self)
+            stop(self.arduinoTimer);
+            delete(instrfind);
+            clear arduino;
+            clear aurduino_object;
+            %delete(self.arduinoObj);
+            clear self.arduinoObj;
+            clear arduinoObj;
+            clear arduino;
+            clear all;
             % Clear any existing Arduino objects from the workspace
-            
-            if exist('arduinoObj', 'var')
-                clear arduinoObj;
-            end
-            if exist('self', 'var') && isfield(self, 'arduinoObj')
-                clear self.arduinoObj;
-            end
+            disp('Program is exiting. Clearing Arduino object.');
         end
 
         %% Point Clouds for Collisions
