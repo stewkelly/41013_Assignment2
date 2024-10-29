@@ -43,8 +43,7 @@ classdef Gripper < handle
             % Animates both gripper fingers simultaneously
             for i = 1:size(qMatrix, 1)
                 self.finger1.model.animate(qMatrix(i, :));
-                self.finger2.model.animate(qMatrix(i, :));
-                pause(0.01); 
+                self.finger2.model.animate(qMatrix(i, :)); 
             end
         end
 
@@ -54,8 +53,18 @@ classdef Gripper < handle
         end
 
         function updatePosition(self, baseTr)
-            self.finger1.model.base = baseTr;
-            self.finger2.model.base = baseTr;
+            qClose = [deg2rad(20), deg2rad(12)];
+            qOpen = [deg2rad(10), deg2rad(0)];
+
+            self.finger1.model.base = baseTr * trotx(pi/2);
+            self.finger2.model.base = baseTr * trotx(pi/2) * troty(pi);
+            if self.holding
+                self.finger1.model.animate(qClose);
+                self.finger2.model.animate(qClose);
+            else
+                self.finger1.model.animate(qOpen);
+                self.finger2.model.animate(qOpen);
+            end
         end
     end
 end

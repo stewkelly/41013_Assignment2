@@ -4,9 +4,14 @@ classdef Robot < handle
         gripper        % Gripper instance
         currentPos     % Current joint positions
         holdingObject
-        objectAvoidVector
+        collisionDetector
+        % objectAvoidVector
         status
-        
+
+    end
+
+    properties(Constant)
+        steps = 50;
     end
 
     methods
@@ -16,21 +21,121 @@ classdef Robot < handle
                 baseTr = eye(4);
             end
             self.robotModel = robotModel;
+            self.collisionDetector = CollisionDetection(0.03);
             self.currentPos = self.robotModel.model.getpos();
             gripperTr = self.robotModel.model.fkine(self.currentPos).T;
             self.gripper = Gripper(gripperTr);
             self.holdingObject = [];
-            self.objectAvoidVector = [];
+            % self.objectAvoidVector = [];
             self.status = 'running';
         end
-        
-        %% Accepts and Save Obstical Vector from Simulation
-        function obsticalVectorCallback(self, pointCloudVector)
-            self.objectAvoidVector = pointCloudVector;
-            disp("IN ROBOT OBJECT AVOID VECTOR:");
-            disp(length(self.objectAvoidVector));
+
+        %% Velocity Kinematics
+        function moveRMRC(self, goalPose)
+            dt = 0.1;   % Time step
+            lambda = 0.05; % Damping factor
+            maxSteps = 100; % Safety limit for iterations
+            i = 1; % MatLab starts values from 1 instead of 0 apparently
+            K = 1.0; % Gain
+            
+            %  -----------------------------  29/10 Update
+            qNow = self.currentPos;
+
+            disp("Starting RMRC movement...");
+            for step = i:maxSteps
+                if strcmp(self.status, 'stopped')
+                    disp('E Stop in Place');
+                    pause(0.1);  % Non-blocking wait loop
+                    continue;
+                end
+
+                currentPose = self.robotModel.model.fkine(qNow).T;
+                error = tr2delta(currentPose, goalPose);
+
+                if norm(error) < 1e-3
+                    disp('Target pose reached.');
+                    break;
+                end
+
+                v = K * error(1:3); % Linear
+                w = K * error(4:6); % Angular
+
+                vw = [v; w];
+
+                % Compute the Jacobian matrix
+                J = self.robotModel.model.jacobe(qNow); % Was computing in base frame before with jacob0. Now in end effector frame
+                
+
+                % Damped least squares solution for joint velocities
+                if self.robotModel.model.n == 6
+                    J_dls = inv((J'*J) + lambda^2*eye(6))*J';    
+                else
+                    J_dls = inv((J'*J) + lambda^2*eye(5))*J';
+                end
+                q_dot = J_dls * vw;
+
+                % Update joint configuration
+                qNext = qNow + q_dot' * dt;
+                self.currentPos = qNext;  % Directly update the stored position
+
+                % Collision Check
+                if self.collisionDetector.checkCollision(qNext, self.robotModel.model)
+                    disp('Collision Detected. Altering Pose.')
+                    % alteredPose = self.avoidCollision(goalPose);
+                    % self.moveRMRC(alteredPose);
+                    return;
+                end
+
+                % Update robot model and gripper
+                self.robotModel.model.animate(qNext);
+                eePose = self.robotModel.model.fkine(qNext).T;
+                self.gripper.updatePosition(eePose);
+
+                % Update held object position if any
+                if ~isempty(self.holdingObject)
+                    self.holdingObject.updatePosition(self.robotModel.model.fkine(qNext).T);
+                end
+
+                % Update current joint positions
+                qNow = qNext;
+
+                pause(dt); % Simulate real-time movement
+            end
+            disp('Movement complete.');
+
         end
-        
+
+        %% Open Gripper
+        function openGripper(self)
+            self.gripper.openGripper(self.steps);
+            self.holdingObject = [];
+        end
+
+        %% Close Gripper
+        function closeGripper(self,  object)
+            self.gripper.closeGripper(self.steps);
+            self.holdingObject = object;
+        end
+
+        %% Butter Bread
+        function butterBread(self, butterPose)
+            % Move to the initial butter pose
+            self.moveRMRC(butterPose);
+
+            % offset = 0.1;
+            % butterPose1 = butterPose * transl(-offset, 0, 0);
+            % butterPose2 = butterPose * transl(offset, 0, 0);
+            % 
+            % self.moveRMRC(butterPose1);
+            % pause(0.1);
+            % 
+            % self.moveRMRC(butterPose2);
+            % pause(0.1);
+            % 
+            % butterPose(3, 4) = butterPose(3, 4) + 1;
+            % self.moveRMRC(butterPose);
+        end
+
         %% Timer Callback
         function timerStatusCheck(self, timerStatus)
             self.status = timerStatus; 
@@ -46,112 +151,60 @@ classdef Robot < handle
             end
         end
 
-        %% Collision Check
-        function isCollision = checkEllipsoidCollision(self, currentJoints)
-            % Extract points from point cloud
-            
-            % Define sphere around end effector - determines sensitivity
-            radii = [0.3, 0.2, 0.4];
-            % Define end effector
-            eePose = self.robotModel.model.fkine(currentJoints).T;
-            
-            % Iterate through objects
-            for j = 1:size(self.objectAvoidVector, 1)+1
-            % Extract points from point cloud
-            points = self.objectAvoidVector{j};
-                % Iterate through points in point cloud
-                for i = 1:size(points, 1)
-            
-                    % Compare point location to end effector
-                    shiftedPoints = points(i, :) - eePose(1:3, 4)';
-                    % Calculate normalized squared distances based on elipsiod
-                    normalizedDistances = (shiftedPoints(:, 1) / radii(1)).^2 + ...
-                                          (shiftedPoints(:, 2) / radii(2)).^2 + ...
-                                          (shiftedPoints(:, 3) / radii(3)).^2;
-                
-                    % Check if any point lies within the ellipsoid
-                    isCollision = any(normalizedDistances <= 1);
-                       if isCollision == true % Returns bool
-                            break;
-                       end
-                 end
-             end
-        end
-
-        %% Velocity Kinematics
-        function qMatrix = moveWithVelocityKinematics(self, goalPose, currentJointConfig)
-            dt = 0.1;   % Time step
-            lambda = 0.1; % Damping factor
-            maxSteps = 100; % Safety limit for iterations
-            i = 1; % MatLab starts values from 1 instead of 0 apparently
-        
-            while i <= maxSteps
-                check = updateSecondStatus(self);
-                if check == 0
-                    disp('WE ARE IN THE COLLISION LOOP');
-                    pause(0.1);  % Non-blocking wait loop
-                    
-                else
-                % Calculate current end-effector pose
-                currentPose = self.robotModel.model.fkine(currentJointConfig);
-        
-                % Compute error in Cartesian space
-                error = tr2delta(currentPose, goalPose);
-        
-                % Define desired Cartesian velocity (e.g., proportional to error)
-                v = 0.5 * error;  % Adjust scaling as needed
-        
-                % Compute the Jacobian matrix
-                J = self.robotModel.model.jacob0(currentJointConfig);
-        
-                % Damped least squares solution for joint velocities
-                J_dls = (J' * J + lambda^2 * eye(size(J, 2))) \ J';
-                q_dot = J_dls * v;
-        
-                % Update joint configuration
-                currentJointConfig = currentJointConfig + q_dot' * dt;
-                % Adds joint configuration to next row of control matrix
-                qMatrix(i, :) = currentJointConfig;
-                % Iterates as amount of steps is undefined
-                
-                
-                    i = i + 1;
-                    % Collision Detection
-                    collisionDetected = self.checkEllipsoidCollision(currentJointConfig);
-                    
-                    % Collision control loop - only detects at the moment
-                        % Needs path correction implimented here
-                    if collisionDetected
-                        disp('Collision detected!');
-                    else
-                        disp('No collision.');
-                    end
-                
-                    % Check for convergence - if EE has reached destination
-                    if norm(error) < 0.01
-                        break;
-                    end
-                end   
+        %% Movement if Collision is Found
+        function alteredPose = avoidCollision(self, goalPose)
+            % Check for initial collision at goalPose
+            if ~self.collisionDetector.checkCollision(self.currentPos, self.robotModel.model)
+                alteredPose = goalPose;  % No collision, return original goalPose
+                return;
             end
-        
-            disp('Movement complete.');
+
+            % Retrieve the current end-effector pose from the robot
+            currentPose = self.robotModel.model.fkine(self.currentPos).T;
+
+            % Calculate the backward direction vector directly within the method
+            directionVector = goalPose(1:3, 4) - currentPose(1:3, 4);
+            directionVector = -directionVector / norm(directionVector);  % Normalize and reverse
+
+            % Set parameters for incremental adjustments
+            maxAttempts = 10;
+            stepSize = 0.02;  % Step size in meters
+            rotationStep = troty(-pi/20); % Adjust this as needed
+
+            % Try moving backward and adjusting rotation
+            for i = 1:maxAttempts
+                % Adjust translation backward along directionVector
+                adjustedPose = goalPose * transl(directionVector * stepSize * i);
+
+                % Gradually rotate to the goal orientation to avoid passing through self
+                rotationAdjust = rotationStep^i;
+                adjustedPose = adjustedPose * rotationAdjust;
+
+                % Use inverse kinematics to find a joint configuration
+                adjustedConfig = self.robotModel.model.ikcon(adjustedPose, self.currentPos);
+
+                % Check if the adjusted configuration is collision-free
+                if ~self.collisionDetector.checkCollision(adjustedConfig, self.robotModel.model)
+                    disp(['Collision avoided by adjusting pose on attempt ', num2str(i)]);
+                    alteredPose = adjustedPose;
+                    return;
+                end
+            end
+
+            % If no safe pose is found, return the original goalPose
+            disp('Unable to find collision-free pose; returning original pose.');
+            alteredPose = goalPose;
         end
 
-
-        %% Move Arm
-        function moveArm(self, targetPose, steps)
+        function moveArm(self, targetPose)
             qNow = self.robotModel.model.getpos();
-            disp("qNow:") % DEBUGGING
-            disp(qNow); % DEBUGGING
-            disp("targetPose:") % DEBUGGING
-            disp(targetPose); % DEBUGGING
             qTarget = self.robotModel.model.ikcon(targetPose, qNow);
             
           %JTraj Movement: 
-            %qMatrix = jtraj(qNow, qTarget, steps);
+            qMatrix = jtraj(qNow, qTarget, self.steps);
 
-          %ResolveMotionRateControl Movement:
-            qMatrix = self.moveWithVelocityKinematics(targetPose, qNow);
+          % %ResolveMotionRateControl Movement:
+          %   qMatrix = self.moveWithVelocityKinematics(targetPose, qNow);
             
             self.animateMovement(qMatrix);
             self.currentPos = qTarget;
@@ -182,83 +235,12 @@ classdef Robot < handle
             end
         end
 
-        %% Open Gripper
-        function openGripper(self, steps)
-            self.gripper.openGripper(steps);
-            if ~isempty(self.holdingObject)
-                self.releaseObject();
-            end
-        end
 
-        %% Close Gripper
-        function closeGripper(self, steps, object)
-            self.gripper.closeGripper(steps);
-            if self.gripper.isHolding()
-                self.holdingObject = object;
-            end
-        end
-
-        %% Pick Up Object
-        function pickUp(self, breadobject)
-            % Approach the object
-            approachPose = transl(breadobject.position) * trotx(pi/2);
-            %approachPose = transl(breadobject.position);
-            self.moveArm(approachPose, 50);
-            self.closeGripper(50, breadobject);
-            
-        end
-
-        %% Release Object
-        function releaseObject(self)
-            self.gripper.openGripper(50);
-            if ~isempty(self.holdingObject)
-         
-        % Updates status in Simulation - this conflicts with current setup
-                % Update object's status based on current state
-                % currentFile = self.holdingObject.file;
-                % switch currentFile
-                %    case 'bread.ply'
-                %       self.holdingObject.updateStatus('toasted');
-                %    case 'toast.ply'
-                %       self.holdingObject.updateStatus('buttered');
-                %    case 'toastButtered.ply'
-                % end
-                
-                self.holdingObject = [];
-            end
-        end
-
-        %% Butter Bread
-        function butterBread(self, currentBread, butterPose, steps)
-            % Move to the initial butter pose
-            self.moveArm(butterPose, steps);
-            
-            offset = 0.05; 
-            butterPose1 = butterPose * transl(0, -offset, 0); 
-            butterPose2 = butterPose * transl(0, offset, 0);  
-
-            cycles = 3; % Adjust as needed for simulation
-
-            for cycle = 1:cycles                
-                self.moveArm(butterPose1, steps);
-                pause(0.1); 
-
-                self.moveArm(butterPose2, steps);
-                pause(0.1); 
-            end
-            currentBread.updateStatus('buttered');
-            butterPose(3, 4) = butterPose(3, 4) + 1;
-            self.moveArm(butterPose, steps);
-            
-
-        end
-        
-        %% Return to default position
-        function defaultPosition(self, defaultPose)
-            self.releaseObject();
-            self.moveArm(defaultPose, 50);
-        end  
-
-        
     end
 end
+
+
+       
+        
+
+

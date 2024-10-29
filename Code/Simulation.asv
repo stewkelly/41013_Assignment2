@@ -322,7 +322,7 @@ classdef Simulation < handle
                 currentBread.updateStatus('toasted'); % Update bread status to toasted - this changes bread to toast
                 % Add the toast point cloud to the collision detection vector
                 self.pointCloudVector{end+1} = currentBread.pointCloud;
-                self.r1.collisionDetector.setObstacles(self.pointCloudVector); 
+                self.r1.collisionDetector.setObstacles(self.pointCloudVector); % Update obstacles
 
                 %% Step 4: Grab Toast
                 % Close Gripper
@@ -330,15 +330,17 @@ classdef Simulation < handle
 
 
                 %% Step 5: Butter Toast
+                % Notify that buttering is starting
                 disp('Starting to butter the toast...');
 
+                % Move Dobot Magician (r2) to buttering station
                 butteringPose = transl([-0.5, 1, 1.25]);
                 self.r2.butterBread(butteringPose);
-                currentBread.updateStatus('buttered'); % Update toast to toastButtered
-                pause(1.0); 
+                currentBread.updateStatus('buttered'); % Update toast status to buttered
+                pause(1.0); % Duration of buttering
 
                 self.pointCloudVector{end+1} = currentBread.pointCloud;
-                self.r1.collisionDetector.setObstacles(self.pointCloudVector); % Update point cloud
+                self.r1.collisionDetector.setObstacles(self.pointCloudVector); % Update obstacles
                 disp('Buttering completed.');
 
 

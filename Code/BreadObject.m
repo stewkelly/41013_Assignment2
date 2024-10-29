@@ -4,6 +4,8 @@ classdef BreadObject < handle
         pose;       % Object's [yaw, pitch, roll, position] pose
         file;       % Object's .ply file
         mesh;       % Object's trisurf object
+        pointCloud = []; % Initialize as empty
+
     end
 
     methods
@@ -12,18 +14,20 @@ classdef BreadObject < handle
             self.pose = pose; % For rotation
             self.file = file;
             self.PlotObject();
+            self.pointCloud = []; % Initialize as empty
+
         end
 
         function PlotObject(self)
             % Load the object model and plot it at the given position
             [faces, vertices, data] = plyread(self.file, 'tri');
-           if isfield(data.vertex, 'red') && isfield(data.vertex, 'green') && isfield(data.vertex, 'blue')
+            if isfield(data.vertex, 'red') && isfield(data.vertex, 'green') && isfield(data.vertex, 'blue')
                 vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
             else
                 % Default to grey color if color fields are missing
                 vertexColors = repmat([0.5, 0.5, 0.5], size(vertices, 1), 1);
             end
-     
+
             % Plot the object at the initial position and store the mesh handle
             R = self.pose(1:3, 1:3);  % Extract the rotation matrix from the pose
             rotatedVertices = (R * vertices')';
@@ -42,50 +46,20 @@ classdef BreadObject < handle
         end
 
         function updatePosition(self, newPose)
-            % Update the object's position and move its mesh accordingly
-            self.position = newPose(1:3, 4);
-            newPosition = self.position;
             self.pose = newPose;
-        
-            % Load the vertices and colors from the PLY file
+            self.position = newPose;
+            % Update the bread's position based on the robot's end-effector
             [faces, vertices, data] = plyread(self.file, 'tri');
-            if isfield(data.vertex, 'red') && isfield(data.vertex, 'green') && isfield(data.vertex, 'blue')
-                vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
-            else
-                % Default to grey color if color fields are missing
-                vertexColors = repmat([0.5, 0.5, 0.5], size(vertices, 1), 1);
-            end
-            % Changed how verticies are shifted - added extra step to account
-            % for rotation - appears in changeFile as well
+            vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+            vertexCount = size(vertices, 1);
 
-            % Extract rotation and translation from the new pose
-            R = newPose(1:3, 1:3);  % Rotation matrix
-            
-            % Check matrix dimension - should be its own function
-            if ~isequal(size(newPosition), [1, 3])  % Check if matrix is not 3x1
-            if numel(newPosition) == 3  % If it contains 3 elements but in wrong shape
-                newPosition = reshape(newPosition, [1, 3]);  % Reshape to 3x1
-            else
-                error('Input matrix must contain exactly 3 elements for translation.');
-            end
-            end
+            % Compute the new position for the brick
+            breadPose = newPose * transl(0, 0, 0.15) * troty(-pi/2) * trotz(pi);  % Adjust Z-axis offset for gripping
+            updatedPoints = [breadPose * [vertices, ones(vertexCount, 1)]']';
 
-            % Apply rotation and translation to each vertex
-            transformedVertices = (R * vertices')' + newPosition;
-        
-            % Ensure vertices and faces are updated properly
-            try
-                set(self.mesh, 'Faces', faces, ...
-                    'Vertices', transformedVertices, ...
-                    'FaceVertexCData', vertexColors);
-                drawnow;
-                disp(['Bread object`` moved to new position: ', mat2str(newPosition)]);
-            catch ME
-                disp('Error updating bread object position:');
-                disp(ME.message);
-            end
+            % Update the vertices of the brick's mesh to reflect its new position
+            self.mesh.Vertices = updatedPoints(:, 1:3);
         end
-
 
         function releaseObject(self)
             % Optional: Remove the mesh if the object is released permanently
@@ -95,43 +69,36 @@ classdef BreadObject < handle
         end
 
 
-        function changeFile(self, newFile)
-            % Change the PLY file associated with the object and update the mesh
-            self.file = newFile;
-            [faces, vertices, data] = plyread(self.file, 'tri');
-            vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+function changeFile(self, newFile)
+    % Update the PLY file associated with the object
+    self.file = newFile;
 
-        % Changed how verticies are shifted - added extra step to account
-        % for rotation - appears in updatePosition as well
+    % Load the vertices and colors from the new PLY file
+    [faces, vertices, data] = plyread(self.file, 'tri');
+    if isfield(data.vertex, 'red') && isfield(data.vertex, 'green') && isfield(data.vertex, 'blue')
+        vertexColors = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+    else
+        % Default to grey color if color fields are missing
+        vertexColors = repmat([0.5, 0.5, 0.5], size(vertices, 1), 1);
+    end
 
-            % Extract the rotation matrix and translation vector from the current pose
-            R = self.pose(1:3, 1:3);  % Rotation matrix (3x3)
-            T = self.position;   % Translation vector (1x3)
-            
-            % Check matrix dimension - should be its own function
-            if ~isequal(size(T), [1, 3])  % Check if matrix is not 3x1
-            if numel(T) == 3  % If it contains 3 elements but in wrong shape
-                T = reshape(T, [1, 3]);  % Reshape to 3x1
-            else
-                error('Input matrix must contain exactly 3 elements for translation.');
-            end
-            end
+    % Apply a corrective rotation around the y-axis
+    correctionRotation = troty(pi/2);  % Rotate by -π/2 around the y-axis
+    rotatedVertices = (correctionRotation(1:3, 1:3) * vertices')';
 
-            % Apply the current pose: Rotate vertices, then translate
-            rotatedVertices = (R * vertices')';  % Rotate vertices
-            transformedVertices = rotatedVertices + T;  % Translate vertices
+    % Transform rotated vertices using the existing pose transformation
+    vertexCount = size(rotatedVertices, 1);
+    transformedVertices = [self.pose * [rotatedVertices, ones(vertexCount, 1)]']';
+    transformedVertices = transformedVertices(:, 1:3); % Discard the homogeneous coordinate
 
-            % Ensure shiftedVertices is [N x 3]
-            if size(transformedVertices, 2) ~= 3
-                error('Shifted vertices must have three columns (x, y, z).');
-            end
+    % Update mesh vertices and faces with the new file's shape and colors
+    set(self.mesh, 'Faces', faces, ...
+        'Vertices', transformedVertices, ...
+        'FaceVertexCData', vertexColors);
+    drawnow;
+end
 
-            % Update mesh vertices and faces
-            set(self.mesh, 'Faces', faces, ...
-                'Vertices', transformedVertices, ...
-                'FaceVertexCData', vertexColors);
-            drawnow;
-        end
+
 
 
         function updateStatus(self, status)
@@ -139,9 +106,10 @@ classdef BreadObject < handle
             switch status
                 case 'bread'
                     self.changeFile('bread.ply');
-                     disp('Bread is bread.');
+                    disp('Bread is bread.');
                 case 'toasted'
                     self.changeFile('toast.ply');
+                    self.pointCloud = self.loadToastPointCloud(self.pose, 'toast.ply');
                     disp('Bread has been toasted.');
                 case 'buttered'
                     self.changeFile('toastButtered.ply');
@@ -154,6 +122,14 @@ classdef BreadObject < handle
                 otherwise
                     disp(['Unknown status: ', status]);
             end
+        end
+
+            function pointCloudGlobal = loadToastPointCloud(self, pose, ply)
+            % Load the toast point cloud with transformation
+            pointCloudLocal = pcread(ply);
+            pointsLocal = pointCloudLocal.Location;
+            pointCloudGlobal = (pose * [pointsLocal, ones(size(pointsLocal, 1), 1)]')';
+            pointCloudGlobal = pointCloudGlobal(:, 1:3);
         end
     end
 end
