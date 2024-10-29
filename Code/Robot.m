@@ -81,6 +81,7 @@ classdef Robot < handle
                 % Collision Check
                 if self.collisionDetector.checkCollision(qNext, self.robotModel.model)
                     disp('Collision Detected. Altering Pose.')
+                    self.status = 'stopped'
                     % alteredPose = self.avoidCollision(goalPose);
                     % self.moveRMRC(alteredPose);
                     return;
@@ -121,7 +122,7 @@ classdef Robot < handle
         function butterBread(self, butterPose)
             % Move to the initial butter pose
             self.moveRMRC(butterPose);
-
+            % ---------- Commented out for Speed in Demo ------------
             % offset = 0.1;
             % butterPose1 = butterPose * transl(-offset, 0, 0);
             % butterPose2 = butterPose * transl(offset, 0, 0);
@@ -134,6 +135,7 @@ classdef Robot < handle
             % 
             % butterPose(3, 4) = butterPose(3, 4) + 1;
             % self.moveRMRC(butterPose);
+            % --------------------------------------------------------
         end
 
         %% Timer Callback

@@ -26,7 +26,8 @@
 % > Changed environment slightly by moving robots and objects for better movement 
 % > Changed steps in main loop so buttering now happens over toaster
 % > Smoothed out main loop to avoid collisions
-% > Created CollisionDetection class - kinda works but commented the avoidance out for demo cause it can freeze
+% > Created CollisionDetection class - kinda works but commented the
+% avoidance out and changed to stop cause it freezes sometimes
 
 
 classdef Simulation < handle
@@ -255,7 +256,7 @@ classdef Simulation < handle
 
         %% Check eStop
         function checkEStop(self)
-            if strcmp(self.status, 'stopped')
+            if strcmp(self.status, 'stopped')  || strcmp(self.r1.status, 'stopped')
                 disp('Emergency Stop Active!');
                 notify(self, 'eStopTriggered');  % Trigger the event
                 stop(self.eStopTimer);  % Stop the timer to halt execution
