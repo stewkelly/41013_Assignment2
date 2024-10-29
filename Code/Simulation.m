@@ -1,35 +1,42 @@
-% Changes 24/10/24:
-% Iterates through bread pieces
-% Bread stacks on final plate
-% Rotation implemented - could simplify position to be derived from 4x4 rotation
-% matrix rather than from seperate variable
-% Bread now follows gripper
-% Bread changes state correctly
-% Added toaster pop animation
-% XArm drops bread for toasting + spreading to be completed
-% Added Gui - need impliment eStop functionality but buttons work
-% Implimented Resolve Motion Rate Control
-% Colision added and approach angles need tweeking for accurate movement
-% Knife added but picks up inside arm of dobot
-% Needs to be rotated + make it face toast consistantly
-% Added collision detection (Robot class) with object vector (Simulation Class)
-% Needs route recalculation - currently just outputs that there has been a collision
-% EStop Currently uses uiwait which is against the assessment guide
-% Need to change this but works well enough for video
-% eStop functionality added within confines of assessment criteria
-% Passes status from timer callback to Robot, if statment during movement process to stop motion
+%% Need to do
+ % I've written a list of todo throughout the control loop. 
+ % It is mostly done just need to tweak the animations and update some of the positions to make it look better
+ % If you feel like doing the collision avoidance, feel free 
+ 
+ % Most of the tweaks to positions will be in this class but you may have to edit some of the movement 
+ % and animation functions in the robot class to get it smoother 
 
-% 29/10 Changes -------------
-% > Updated RMRC control in robot class
-% > Cleaned up Robot class
-% > Changed environment slightly by moving robots and objects for better movement 
-% > Changed steps in main loop so buttering now happens over toaster
-% > Smoothed out main loop to avoid collisions
-% > Created CollisionDetection class - kinda works but commented the avoidance out for demo cause it can freeze
+ % > Need to add the knife.ply to the robot for buttering the bread - Loaded in and interactable, Orients strangely and ruins r2 pathing
+ % > GUI for the simulation - Complete skin, needs functionality
+ % > Collision avoidance - Detects collisions, needs route recalibration
+ % > E Stop button functionality
 
+ % I tried to comment most of it but if you have any questions about code, just message me
+
+ % Changes 24/10/24: 
+       % Iterates through bread pieces
+       % Bread stacks on final plate
+       % Rotation implemented - could simplify position to be derived from 4x4 rotation
+            % matrix rather than from seperate variable
+       % Bread now follows gripper
+       % Bread changes state correctly
+       % Added toaster pop animation 
+       % XArm drops bread for toasting + spreading to be completed
+       % Added Gui - need impliment eStop functionality but buttons work
+       % Implimented Resolve Motion Rate Control
+            % Colision added and approach angles need tweeking for accurate movement
+       % Knife added but picks up inside arm of dobot
+            % Needs to be rotated + make it face toast consistantly
+       % Added collision detection (Robot class) with object vector (Simulation Class)
+            % Needs route recalculation - currently just outputs that there has been a collision
+       % EStop Currently uses uiwait which is against the assessment guide
+            % Need to change this but works well enough for video
+       % eStop functionality added within confines of assessment criteria
+            % Passes status from timer callback to Robot, if statment during movement process to stop motion
 
 classdef Simulation < handle
     properties
+        
         r1;          % First Robot instance (XArm6)
         r2;          % Second Robot instance (DobotMagician)
         breads;      % Array of BreadObject instances
@@ -49,6 +56,9 @@ classdef Simulation < handle
         status = 'running';
         eStopActive = false;  % Track e-stop state
         eStopTimer;           % Timer object
+        arduinoObj;   % Arduino object for serial communication
+        arduinoTimer;
+        serialObj;
     end
 
     events
@@ -62,16 +72,27 @@ classdef Simulation < handle
         function self = Simulation()
             clf;
             close all;
+            self.clearArduinoConnections();
+            
 
             self.guiApp = gui;
             self.guiApp.setSimulationInstance(self); % Set the simulation instance
 
             self.eStopTimer = timer('ExecutionMode', 'fixedRate', ...
-                'Period', 0.1, ...  % Check every 100ms
-                'TimerFcn', @(~,~)self.checkEStop);
+                                    'Period', 0.5, ...  % Check every 100ms
+                                    'TimerFcn', @(~,~)self.checkEStop);
+            
+   
+            self.arduinoObj = arduino("/dev/cu.usbmodem101", "Uno", Libraries = ["APDS9960","Adafruit/MotorShieldV2","CAN","I2C","RotaryEncoder","SPI","Servo","ShiftRegister"]);
+            configurePin(self.arduinoObj, "D2", "Pullup");
+            configurePin(self.arduinoObj, "D3", "Pullup");
+            configurePin(self.arduinoObj, "D4", "Pullup");
+             self.arduinoTimer = timer('ExecutionMode', 'fixedRate', ...
+                              'Period', 0.5, ... % Adjust interval as needed
+                              'TimerFcn', @(~,~)self.readArduinoData);
 
 
-
+            
             % Event listeners
             addlistener(self, 'eStopTriggered', @(~, ~) self.handleEStop());
             addlistener(self, 'readyTriggered', @(~, ~) self.handleReady());
@@ -85,6 +106,18 @@ classdef Simulation < handle
             self.r1.collisionDetector.setObstacles(self.pointCloudVector);
 
             self.runSim();
+        end
+        
+
+        function clearArduinoConnections(self)
+            % Clear any existing Arduino objects from the workspace
+            
+            if exist('arduinoObj', 'var')
+                clear arduinoObj;
+            end
+            if exist('self', 'var') && isfield(self, 'arduinoObj')
+                clear self.arduinoObj;
+            end
         end
 
         %% Point Clouds for Collisions
@@ -107,7 +140,7 @@ classdef Simulation < handle
             % Remove homogenous coordinate
             pointCloudGlobal = pointsGlobal(:, 1:3);
         end
-
+      
         %% Plot Environment
         function plotEnvironment(self)
             hold on;
@@ -224,14 +257,36 @@ classdef Simulation < handle
 
         %% Check eStop
         function checkEStop(self)
-            self.r1.timerStatusCheck(self.status);
-            self.r2.timerStatusCheck(self.status);
             if strcmp(self.status, 'stopped')
                 disp('Emergency Stop Active!');
                 notify(self, 'eStopTriggered');  % Trigger the event
                 stop(self.eStopTimer);  % Stop the timer to halt execution
+                %stop(self.arduinoTimer)
+            end
+            self.r1.timerStatusCheck(self.status);
+            self.r2.timerStatusCheck(self.status);
+        end
+
+        %% Arduino Callbacks
+        function readArduinoData(self)
+            disp("READING ARDUINO");
+        
+            % Read digital pin states directly
+            eStopState = readDigitalPin(self.arduinoObj, "D2");
+            readyState = readDigitalPin(self.arduinoObj, "D3");
+            startState = readDigitalPin(self.arduinoObj, "D4");
+        
+            disp(['eStop: ', num2str(eStopState), ' Ready: ', num2str(readyState), ' Start: ', num2str(startState)]); % Debugging line
+        
+            if eStopState == 1
+                self.stopButtonCallback();
+            elseif readyState == 1
+                self.readyButtonCallback();
+            elseif startState == 1
+                self.startButtonCallback();
             end
         end
+
 
 
         %% Interrupt Callbacks
@@ -264,6 +319,7 @@ classdef Simulation < handle
                 disp('Simulation Started');
                 self.status = 'running';
                 start(self.eStopTimer);
+                %start(self.arduinoTimer);
             else
                 disp('System not ready. Press "Ready" first.');
             end
@@ -275,8 +331,9 @@ classdef Simulation < handle
         function runSim(self)
             % Passes obsticals to Robot platforms
             start(self.eStopTimer);
-            % self.r1.obsticalVectorCallback(self.pointCloudVector);
-            % self.r2.obsticalVectorCallback(self.pointCloudVector);
+            start(self.arduinoTimer);
+            self.r1.obsticalVectorCallback(self.pointCloudVector);
+            self.r2.obsticalVectorCallback(self.pointCloudVector);
             % Main Control Loop
             for i = 1:length(self.breads)
                 %if strcmp(self.status, 'stopped')
