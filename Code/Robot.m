@@ -5,6 +5,7 @@ classdef Robot < handle
         currentPos     % Current joint positions
         holdingObject
         objectAvoidVector
+        status
         
     end
 
@@ -20,6 +21,7 @@ classdef Robot < handle
             self.gripper = Gripper(gripperTr);
             self.holdingObject = [];
             self.objectAvoidVector = [];
+            self.status = 'running';
         end
         
         %% Accepts and Save Obstical Vector from Simulation
@@ -29,6 +31,21 @@ classdef Robot < handle
             disp(length(self.objectAvoidVector));
         end
         
+        %% Timer Callback
+        function timerStatusCheck(self, timerStatus)
+            self.status = timerStatus; 
+        end
+        
+
+        %% Check Status
+        function secondStatus = updateSecondStatus(self)
+            if strcmp(self.status, 'stopped')
+               secondStatus = 0;
+            else
+               secondStatus = 1;
+            end
+        end
+
         %% Collision Check
         function isCollision = checkEllipsoidCollision(self, currentJoints)
             % Extract points from point cloud
@@ -42,24 +59,23 @@ classdef Robot < handle
             for j = 1:size(self.objectAvoidVector, 1)+1
             % Extract points from point cloud
             points = self.objectAvoidVector{j};
-            
                 % Iterate through points in point cloud
                 for i = 1:size(points, 1)
-                % Compare point location to end effector
-                shiftedPoints = points(i, :) - eePose(1:3, 4)';
-                % Calculate normalized squared distances based on elipsiod
-                normalizedDistances = (shiftedPoints(:, 1) / radii(1)).^2 + ...
-                                      (shiftedPoints(:, 2) / radii(2)).^2 + ...
-                                      (shiftedPoints(:, 3) / radii(3)).^2;
             
-                % Check if any point lies within the ellipsoid
-                isCollision = any(normalizedDistances <= 1);
-                   if isCollision == true % Returns bool
-                        break;
-                   end
-
-                end
-            end
+                    % Compare point location to end effector
+                    shiftedPoints = points(i, :) - eePose(1:3, 4)';
+                    % Calculate normalized squared distances based on elipsiod
+                    normalizedDistances = (shiftedPoints(:, 1) / radii(1)).^2 + ...
+                                          (shiftedPoints(:, 2) / radii(2)).^2 + ...
+                                          (shiftedPoints(:, 3) / radii(3)).^2;
+                
+                    % Check if any point lies within the ellipsoid
+                    isCollision = any(normalizedDistances <= 1);
+                       if isCollision == true % Returns bool
+                            break;
+                       end
+                 end
+             end
         end
 
         %% Velocity Kinematics
@@ -70,6 +86,12 @@ classdef Robot < handle
             i = 1; % MatLab starts values from 1 instead of 0 apparently
         
             while i <= maxSteps
+                check = updateSecondStatus(self);
+                if check == 0
+                    disp('WE ARE IN THE COLLISION LOOP');
+                    pause(0.1);  % Non-blocking wait loop
+                    
+                else
                 % Calculate current end-effector pose
                 currentPose = self.robotModel.model.fkine(currentJointConfig);
         
@@ -91,22 +113,25 @@ classdef Robot < handle
                 % Adds joint configuration to next row of control matrix
                 qMatrix(i, :) = currentJointConfig;
                 % Iterates as amount of steps is undefined
-                i = i + 1;
-                % Collision Detection
-                collisionDetected = self.checkEllipsoidCollision(currentJointConfig);
                 
-                % Collision control loop - only detects at the moment
-                    % Needs path correction implimented here
-                if collisionDetected
-                    disp('Collision detected!');
-                else
-                    disp('No collision.');
-                end
-
-                % Check for convergence - if EE has reached destination
-                if norm(error) < 0.01
-                    break;
-                end
+                
+                    i = i + 1;
+                    % Collision Detection
+                    collisionDetected = self.checkEllipsoidCollision(currentJointConfig);
+                    
+                    % Collision control loop - only detects at the moment
+                        % Needs path correction implimented here
+                    if collisionDetected
+                        disp('Collision detected!');
+                    else
+                        disp('No collision.');
+                    end
+                
+                    % Check for convergence - if EE has reached destination
+                    if norm(error) < 0.01
+                        break;
+                    end
+                end   
             end
         
             disp('Movement complete.');
@@ -136,19 +161,24 @@ classdef Robot < handle
 
         %% Animate Movement
         function animateMovement(self, qMatrix)
-            for i = 1:size(qMatrix, 1)
+            i = 1;
+            while i <= size(qMatrix, 1)
+                if strcmp(self.status, 'stopped')
+                    disp('WE ARE IN THE ANIMATION LOOP');
+                    pause(0.1);  % Non-blocking wait loop
+                    continue;
+                end
+        
                 self.robotModel.model.animate(qMatrix(i, :));
                 eePose = self.robotModel.model.fkine(qMatrix(i, :)).T;
-                self.gripper.updatePosition(eePose); 
-                %disp("1 for holding something!:"); % DEBUGGING
-                %disp(~isempty(self.holdingObject)); % DEBUGGING
-                
-                % Added so bread follows gripper when picked up
-                if ~isempty(self.holdingObject)  % Check if holdingObject is not empty
+                self.gripper.updatePosition(eePose);
+        
+                if ~isempty(self.holdingObject)
                     self.holdingObject.updatePosition(eePose);
-
                 end
-                pause(0.01);
+        
+                pause(0.01);  % Control animation speed
+                i = i + 1;
             end
         end
 
@@ -227,6 +257,8 @@ classdef Robot < handle
         function defaultPosition(self, defaultPose)
             self.releaseObject();
             self.moveArm(defaultPose, 50);
-        end    
+        end  
+
+        
     end
 end

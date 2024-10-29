@@ -31,7 +31,9 @@
             % Needs route recalculation - currently just outputs that there has been a collision
        % EStop Currently uses uiwait which is against the assessment guide
             % Need to change this but works well enough for video
-
+       % eStop functionality added within confines of assessment criteria
+            % Passes status from timer callback to Robot, if statment during movement process to stop motion
+       
 classdef Simulation < handle
     properties
         r1;          % First Robot instance (XArm6)
@@ -49,7 +51,9 @@ classdef Simulation < handle
         fence;
         toaster;
         pointCloudVector;
-        status = 'stopped';  % Track the state of the simulation
+        status = 'running';
+        eStopActive = false;  % Track e-stop state
+        eStopTimer;           % Timer object 
     end
     
     events
@@ -67,6 +71,12 @@ classdef Simulation < handle
             self.guiApp = gui;
             self.guiApp.setSimulationInstance(self); % Set the simulation instance
             
+            self.eStopTimer = timer('ExecutionMode', 'fixedRate', ...
+                                    'Period', 0.1, ...  % Check every 100ms
+                                    'TimerFcn', @(~,~)self.checkEStop);
+            
+
+
             % Event listeners
             addlistener(self, 'eStopTriggered', @(~, ~) self.handleEStop());
             addlistener(self, 'readyTriggered', @(~, ~) self.handleReady());
@@ -234,6 +244,18 @@ classdef Simulation < handle
          
         end
         
+        %% Check eStop
+        function checkEStop(self)      
+            self.r1.timerStatusCheck(self.status);
+            self.r2.timerStatusCheck(self.status);
+            if strcmp(self.status, 'stopped')
+                disp('Emergency Stop Active!');
+                notify(self, 'eStopTriggered');  % Trigger the event
+                stop(self.eStopTimer);  % Stop the timer to halt execution
+            end
+        end
+
+
         %% Interrupt Callbacks
         function stopButtonCallback(self)
             notify(self, 'eStopTriggered');  % Trigger eStop event
@@ -247,12 +269,11 @@ classdef Simulation < handle
             notify(self, 'startTriggered');  % Trigger start event
         end
 
-
+        
         %% Gui Buttons
         function handleEStop(self)
             disp('Emergency Stop Triggered');
             self.status = 'stopped';
-            uiwait();  % Pause execution
         end
         
         function handleReady(self)
@@ -264,7 +285,7 @@ classdef Simulation < handle
             if strcmp(self.status, 'ready')
                 disp('Simulation Started');
                 self.status = 'running';
-                uiresume();  % Resume execution
+                start(self.eStopTimer);
             else
                 disp('System not ready. Press "Ready" first.');
             end
@@ -275,6 +296,7 @@ classdef Simulation < handle
         %% Run Simulation
         function runSim(self)
             % Passes obsticals to Robot platforms
+            start(self.eStopTimer);
             self.r1.obsticalVectorCallback(self.pointCloudVector);
             self.r2.obsticalVectorCallback(self.pointCloudVector);
             % Main Control Loop
@@ -302,7 +324,7 @@ classdef Simulation < handle
                 toasterPose = transl(toasterPosition) * trotx(pi/2);
                 self.r1.moveArm(toasterPose, 50);
                 pause(0.5);
-        
+                
                 % Release bread to toaster
                 toasterDownPosition = [-0.64, 1.1, 1.1];
                 breadPose = transl(toasterDownPosition) * trotx(pi/2); % Added for rotation into toaster
